@@ -1,3 +1,4 @@
+// TDD contract for v0.x score normalization.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quadrant_planner/migration/legacy_score_normalizer.dart';
 
