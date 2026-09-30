@@ -19,7 +19,7 @@ void main() {
       db,
       idFactory: () {
         id += 1;
-        return 'task-' + id.toString();
+        return 'task-$id';
       },
       clock: () => now,
     );
