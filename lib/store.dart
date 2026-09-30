@@ -636,6 +636,17 @@ class LocalStore {
     final accountId = 'account-$userId';
     final active = await activeProfile();
     final existing = await db.query('profiles', where: 'profile_id = ?', whereArgs: [accountId]);
+    final inheritedSettings = (await settings()).toJson();
+    final localEvents = active['kind'] == 'local'
+        ? await db.query('task_events', where: 'profile_id = ?', whereArgs: [active['profile_id']])
+        : <Map<String, Object?>>[];
+    final localTasks = active['kind'] == 'local'
+        ? await db.query('tasks', where: 'profile_id = ?', whereArgs: [active['profile_id']])
+        : <Map<String, Object?>>[];
+    final localTags = active['kind'] == 'local'
+        ? await db.query('tags', where: 'profile_id = ?', whereArgs: [active['profile_id']])
+        : <Map<String, Object?>>[];
+
     await db.transaction((tx) async {
       if (existing.isEmpty) {
         await tx.insert('profiles', {
@@ -649,25 +660,25 @@ class LocalStore {
         await tx.insert('sync_state', {'profile_id': accountId, 'cursor': 0, 'status': 'idle'});
         await tx.insert('settings', {
           'profile_id': accountId,
-          'state_json': jsonEncode((await settings()).toJson()),
+          'state_json': jsonEncode(inheritedSettings),
         });
 
         if (active['kind'] == 'local') {
-          for (final row in await db.query('task_events', where: 'profile_id = ?', whereArgs: [active['profile_id']])) {
+          for (final row in localEvents) {
             await tx.insert('task_events', {
               ...row,
               'profile_id': accountId,
               'confirmed': 0,
             });
           }
-          for (final row in await db.query('tasks', where: 'profile_id = ?', whereArgs: [active['profile_id']])) {
+          for (final row in localTasks) {
             await tx.insert('tasks', {
               ...row,
               'profile_id': accountId,
               'server_revision': 0,
             });
           }
-          for (final row in await db.query('tags', where: 'profile_id = ?', whereArgs: [active['profile_id']])) {
+          for (final row in localTags) {
             await tx.insert('tags', {...row, 'profile_id': accountId});
           }
         }
@@ -711,6 +722,124 @@ class LocalStore {
         );
       });
     }
+    _changes.add(null);
+  }
+
+  Future<void> markBatchApplied({
+    required String batchId,
+    required String entityId,
+    required int revision,
+  }) async {
+    final p = await activeProfile();
+    final profileId = p['profile_id'];
+    await db.transaction((tx) async {
+      await tx.update(
+        'tasks',
+        {'server_revision': revision},
+        where: 'profile_id = ? AND task_id = ?',
+        whereArgs: [profileId, entityId],
+      );
+      await tx.update(
+        'task_events',
+        {'confirmed': 1},
+        where: 'profile_id = ? AND task_id = ?',
+        whereArgs: [profileId, entityId],
+      );
+      await tx.delete(
+        'outbox',
+        where: 'profile_id = ? AND batch_id = ?',
+        whereArgs: [profileId, batchId],
+      );
+    });
+    _changes.add(null);
+  }
+
+  Future<void> applyRemotePage(List<Object?> rawChanges, int nextCursor) async {
+    final p = await activeProfile();
+    final profileId = p['profile_id'] as String;
+    await db.transaction((tx) async {
+      for (final raw in rawChanges) {
+        if (raw is! Map) continue;
+        final change = raw.cast<String, Object?>();
+        final kind = change['entity_kind']?.toString();
+        final entityId = change['entity_id']?.toString();
+        final revision = (change['revision'] as num?)?.toInt() ?? 0;
+        final stateRaw = change['state'] ?? change['entity_state'] ?? change['payload'];
+        if (entityId == null || stateRaw is! Map) continue;
+        final state = stateRaw.cast<String, Object?>();
+
+        if (kind == 'task') {
+          final taskJson = state['task'] is Map
+              ? (state['task'] as Map).cast<String, Object?>()
+              : state;
+          final task = TaskRecord.fromJson(taskJson);
+          await tx.insert(
+            'tasks',
+            {
+              'profile_id': profileId,
+              'task_id': entityId,
+              'state_json': jsonEncode(task.toJson()),
+              'server_revision': revision,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          final eventsRaw = state['events'];
+          if (eventsRaw is List) {
+            var idx = Sqflite.firstIntValue(await tx.rawQuery(
+                  'SELECT COUNT(*) FROM task_events WHERE profile_id = ? AND task_id = ?',
+                  [profileId, entityId],
+                )) ??
+                0;
+            for (final eRaw in eventsRaw) {
+              if (eRaw is! Map) continue;
+              final event = TaskEvent.fromJson(eRaw.cast<String, Object?>());
+              final exists = await tx.query(
+                'task_events',
+                columns: ['event_id'],
+                where: 'profile_id = ? AND event_id = ?',
+                whereArgs: [profileId, event.id],
+                limit: 1,
+              );
+              if (exists.isNotEmpty) continue;
+              await tx.insert('task_events', {
+                'profile_id': profileId,
+                'event_id': event.id,
+                'task_id': entityId,
+                'idx': idx++,
+                'event_json': jsonEncode(event.toJson()),
+                'confirmed': 1,
+              });
+            }
+          }
+        } else if (kind == 'tag') {
+          final tag = TagRecord.fromJson(state);
+          await tx.insert(
+            'tags',
+            {
+              'profile_id': profileId,
+              'tag_id': tag.id,
+              'state_json': jsonEncode(tag.toJson()),
+              'name': tag.name,
+              'archived_at': tag.archivedAt?.toIso8601String(),
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        } else if (kind == 'settings') {
+          final settings = AppSettings.fromJson(state);
+          await tx.insert(
+            'settings',
+            {'profile_id': profileId, 'state_json': jsonEncode(settings.toJson())},
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      }
+      await tx.update(
+        'sync_state',
+        {'cursor': nextCursor, 'status': 'idle'},
+        where: 'profile_id = ?',
+        whereArgs: [profileId],
+      );
+    });
     _changes.add(null);
   }
 
