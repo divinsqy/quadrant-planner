@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 enum SearchEntityType {
   task,
   project,
+  tag,
 }
 
 class GlobalSearchResult {
