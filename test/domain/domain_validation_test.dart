@@ -56,6 +56,17 @@ void main() {
     expect(() => buildTask(progress: 101), throwsArgumentError);
   });
 
+  test('Task.copyWith preserves identity while applying explicit updates', () {
+    final original = buildTask();
+    final changed = original.copyWith(title: 'Updated', progress: 40);
+
+    expect(changed.id, original.id);
+    expect(changed.title, 'Updated');
+    expect(changed.progress, 40);
+    expect(changed.baseUrgency, original.baseUrgency);
+    expect(changed.createdAt, original.createdAt);
+  });
+
   test('default app preferences use midpoint quadrant thresholds and blank nickname', () {
     final settings = AppPreferences.defaults();
 
