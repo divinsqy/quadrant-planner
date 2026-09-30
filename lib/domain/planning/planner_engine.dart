@@ -240,7 +240,7 @@ class PlannerEngine {
   ) {
     final end = start.add(Duration(minutes: minutes));
     return PlannedBlock(
-      id: 'suggested-' + taskId + '-' + start.millisecondsSinceEpoch.toString(),
+      id: 'suggested-$taskId-${start.millisecondsSinceEpoch}',
       taskId: taskId,
       start: start,
       end: end,
