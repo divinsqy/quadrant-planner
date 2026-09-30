@@ -8,6 +8,9 @@ import 'package:uuid/uuid.dart';
 
 import 'models.dart';
 
+int _firstInt(List<Map<String, Object?>> rows) =>
+    rows.isEmpty ? 0 : (rows.first.values.first as num).toInt();
+
 class LocalStore {
   final Database db;
   final String deviceId;
@@ -372,11 +375,10 @@ class LocalStore {
         if (at.isBefore(last.occurredAt)) throw StateError('CLOCK_SKEW');
       }
 
-      final count = Sqflite.firstIntValue(await tx.rawQuery(
+      final count = _firstInt(await tx.rawQuery(
             'SELECT COUNT(*) FROM task_events WHERE profile_id = ? AND task_id = ?',
             [profileId, state.id],
-          )) ??
-          0;
+          ));
       final event = TaskEvent(
         id: const Uuid().v4(),
         taskId: state.id,
@@ -785,7 +787,7 @@ class LocalStore {
           );
           final eventsRaw = state['events'];
           if (eventsRaw is List) {
-            var idx = Sqflite.firstIntValue(await tx.rawQuery(
+            var idx = _firstInt(await tx.rawQuery(
                   'SELECT COUNT(*) FROM task_events WHERE profile_id = ? AND task_id = ?',
                   [profileId, entityId],
                 )) ??
