@@ -6,8 +6,9 @@ import 'package:flutter/foundation.dart';
 
 import '../core/database/app_database.dart';
 import 'legacy_migration_service.dart';
+import 'legacy_models.dart' show LegacyMigrationPreview;
 
-export 'legacy_migration_service.dart' show LegacyMigrationPreview;
+export 'legacy_models.dart' show LegacyMigrationPreview;
 
 abstract interface class MigrationGateway {
   Future<bool> isMigrationRequired();
