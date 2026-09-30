@@ -2,14 +2,15 @@ name: Build desktop installers
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-${{ github.ref }}
+  group: desktop-main
   cancel-in-progress: true
 
 jobs:
@@ -35,12 +36,15 @@ jobs:
           flutter pub get
 
       - name: Analyze
+        shell: pwsh
         run: flutter analyze
 
       - name: Test
+        shell: pwsh
         run: flutter test
 
       - name: Build Windows release
+        shell: pwsh
         run: flutter build windows --release --build-name 0.8.0 --build-number 8
 
       - name: Bundle Visual C++ runtime
@@ -49,72 +53,13 @@ jobs:
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Redist.14.Latest -property installationPath
           if (-not $vs) { throw "Visual Studio VC++ redistributable not found" }
+
           $runtime = Get-ChildItem "$vs\VC\Redist\MSVC" -Recurse -File -Filter "vcruntime140.dll" |
-            Where-Object { $_.FullName -match '\\x64\\Microsoft\.VC[0-9]+\.CRT\\vcruntime140\.dll
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup -y --no-progress
-
-      - name: Build installer
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\windows\quadrant_planner.iss
-
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: QuadrantPlanner-Windows-x64
-          path: dist/windows/*.exe
-          if-no-files-found: error
-
-  macos:
-    name: macOS DMG
-    runs-on: macos-15
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.3'
-          channel: stable
-          cache: true
-
-      - name: Generate macOS runner and dependencies
-        run: |
-          flutter config --enable-macos-desktop
-          flutter create . --platforms=macos --project-name quadrant_planner --org com.divins
-          flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
-
-      - name: Build macOS release
-        run: flutter build macos --release --build-name 0.8.0 --build-number 8
-
-      - name: Package DMG
-        env:
-          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bash scripts/build_macos_dmg.sh
-
-      - name: Upload macOS DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: QuadrantPlanner-macOS
-          path: dist/macos/*.dmg
-          if-no-files-found: error
- } |
+            Where-Object { $_.FullName -like "*\x64\Microsoft.VC*.CRT\vcruntime140.dll" } |
             Select-Object -First 1
+
           if (-not $runtime) { throw "App-local Visual C++ x64 runtime not found under $vs" }
+
           $crt = $runtime.Directory.FullName
           $release = "build\windows\x64\runner\Release"
           Write-Host "Bundling VC runtime from $crt"
