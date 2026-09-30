@@ -36,6 +36,7 @@
 - Create: `lib/domain/reports/report_evidence.dart`
 - Create: `lib/features/reports/application/weekly_report_builder.dart`
 - Create: `lib/features/reports/data/report_repository.dart`
+- Create: `lib/features/reports/data/weekly_note_repository.dart`
 - Test: `test/features/reports/weekly_report_builder_test.dart`
 
 **Interfaces:**
@@ -166,3 +167,30 @@ Generate draft, edit item, expand evidence, simulate export cancellation/failure
 - [ ] **Step 4: Commit**
 
 `git commit -am "feat: add one-click weekly reports"`.
+
+
+---
+
+### Task 6: Weekly-note capture and report history
+
+**Files:**
+- Create: `lib/features/reports/presentation/weekly_note_dialog.dart`
+- Modify: `lib/features/tasks/presentation/task_detail_page.dart`
+- Modify: `lib/features/focus/presentation/focus_page.dart`
+- Modify: `lib/features/reports/presentation/reports_page.dart`
+- Test: `test/features/reports/weekly_note_flow_test.dart`
+
+**Interfaces:**
+- Task Detail and Focus completion expose `Record weekly note` with optional problem/cause/solution/learning fields.
+- Reports page lists persisted weekly report drafts/final reports by report date range; opening an old report never regenerates it unless the user explicitly chooses Regenerate.
+
+- [ ] **Step 1: Write failing note/history test**
+
+Create a task-linked Q/A note, generate report, verify note evidence; save report, change task afterward, reopen historical report and assert saved content remains unchanged.
+
+- [ ] **Step 2: Implement note entry and history archive**
+
+- [ ] **Step 3: Verify and commit**
+
+Run reports tests and `flutter analyze`.  
+Commit: `feat: capture weekly notes and report history`.
