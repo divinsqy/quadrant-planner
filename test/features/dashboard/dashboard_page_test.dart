@@ -137,8 +137,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('AXI write path'), findsOneWidget);
+    expect(find.text('AXI write path'), findsWidgets);
     expect(dashboard.state.snapshots, hasLength(1));
+    expect(dashboard.state.currentRecommendation?.task.title, 'AXI write path');
     expect(
       dashboard.state.snapshots.single.currentUrgency,
       greaterThanOrEqualTo(70),
