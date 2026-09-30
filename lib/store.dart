@@ -790,8 +790,7 @@ class LocalStore {
             var idx = _firstInt(await tx.rawQuery(
                   'SELECT COUNT(*) FROM task_events WHERE profile_id = ? AND task_id = ?',
                   [profileId, entityId],
-                )) ??
-                0;
+                ));
             for (final eRaw in eventsRaw) {
               if (eRaw is! Map) continue;
               final event = TaskEvent.fromJson(eRaw.cast<String, Object?>());
