@@ -134,3 +134,30 @@ Run `flutter test test/features/planner test/features/focus -r expanded && flutt
 - [ ] **Step 4: Commit**
 
 `git commit -am "feat: integrate focus workflow"`.
+
+
+---
+
+### Task 5: Editable work schedule and weekend overrides
+
+**Files:**
+- Create: `lib/features/settings/presentation/work_schedule_settings.dart`
+- Create: `lib/features/planner/presentation/weekend_override_dialog.dart`
+- Test: `test/features/settings/work_schedule_settings_test.dart`
+
+**Interfaces:**
+- Settings edits recurring weekday windows and persists them through `PreferencesRepository`/schedule storage.
+- Weekend override dialog writes a one-date `TimeWindow` override and does not mutate the recurring weekly schedule.
+
+- [ ] **Step 1: Write failing settings tests**
+
+Assert default 09:00–12:00 and 14:00–18:00; editing a weekday window changes future Planner suggestions; adding Saturday 10:00–12:00 affects only that date; invalid/overlapping windows are rejected.
+
+- [ ] **Step 2: Implement settings and override dialog**
+
+Changing schedule invalidates derived Planner suggestions but preserves locked blocks and confirmed Focus history.
+
+- [ ] **Step 3: Verify and commit**
+
+Run `flutter test test/features/settings/work_schedule_settings_test.dart test/features/planner -r expanded && flutter analyze`.  
+Commit: `feat: make planning hours editable`.
