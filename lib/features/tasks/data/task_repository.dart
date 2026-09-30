@@ -116,6 +116,29 @@ class TaskRepository {
         );
   }
 
+  Future<List<Task>> search(
+    String query, {
+    int limit = 20,
+  }) async {
+    final normalized = query.trim();
+    if (normalized.isEmpty) {
+      return const [];
+    }
+
+    final pattern = '%$normalized%';
+    final statement = _db.select(_db.tasks)
+      ..where(
+        (row) =>
+            row.deletedAt.isNull() &
+            (row.title.like(pattern) | row.description.like(pattern)),
+      )
+      ..orderBy([(row) => OrderingTerm.desc(row.updatedAt)])
+      ..limit(limit);
+
+    final rows = await statement.get();
+    return rows.map(_fromRow).toList(growable: false);
+  }
+
   Future<void> softDelete(String id, DateTime at) async {
     final deletedAt = at.toUtc();
     await (_db.update(_db.tasks)..where((row) => row.id.equals(id))).write(
