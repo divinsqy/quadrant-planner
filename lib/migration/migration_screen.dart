@@ -92,13 +92,13 @@ class _MigrationPreview extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 16),
-                Text('任务：\${preview.taskCount}'),
-                Text('标签：\${preview.tagCount}'),
-                Text('历史事件：\${preview.eventCount}'),
+                Text('任务：${preview.taskCount}'),
+                Text('标签：${preview.tagCount}'),
+                Text('历史事件：${preview.eventCount}'),
                 if (preview.skipped.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
-                    '有 \${preview.skipped.length} 项无法解析，将在导入结果中列出。',
+                    '有 ${preview.skipped.length} 项无法解析，将在导入结果中列出。',
                   ),
                 ],
                 const SizedBox(height: 20),
