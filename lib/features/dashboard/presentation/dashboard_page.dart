@@ -57,8 +57,10 @@ class _DashboardPageState extends State<DashboardPage> {
     final state = widget.controller.state;
     final recommendation = state.currentRecommendation;
 
-    return SafeArea(
-      child: Padding(
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        child: Padding(
         padding: const EdgeInsets.all(AppTokens.space3),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -172,6 +174,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }
