@@ -12,20 +12,6 @@ import 'legacy_models.dart';
 import 'legacy_reader.dart';
 import 'legacy_score_normalizer.dart';
 
-class LegacyMigrationPreview {
-  final int taskCount;
-  final int tagCount;
-  final int eventCount;
-  final List<LegacySkippedEntity> skipped;
-
-  const LegacyMigrationPreview({
-    required this.taskCount,
-    required this.tagCount,
-    required this.eventCount,
-    required this.skipped,
-  });
-}
-
 class LegacyMigrationResult {
   final bool alreadyMigrated;
   final int importedTasks;
@@ -55,6 +41,21 @@ class LegacyMigrationService {
     this.calendarProvider,
   });
 
+  Future<bool> hasSuccessfulMigration() async {
+    final sourceFile = File(legacyDatabasePath);
+    if (!await sourceFile.exists()) {
+      return false;
+    }
+    final sourceHash = await _sourceHash(sourceFile);
+    final rows = await (database.select(database.migrationState)
+          ..where(
+            (row) =>
+                row.sourceHash.equals(sourceHash) & row.success.equals(true),
+          ))
+        .get();
+    return rows.isNotEmpty;
+  }
+
   Future<LegacyMigrationPreview> preview() async {
     final snapshot = await LegacyReader(legacyDatabasePath).read();
     return LegacyMigrationPreview(
@@ -70,8 +71,7 @@ class LegacyMigrationService {
   }) async {
     final migrationTime = migrationAt.toUtc();
     final sourceFile = File(legacyDatabasePath);
-    final sourceBytes = await sourceFile.readAsBytes();
-    final sourceHash = sha256.convert(sourceBytes).toString();
+    final sourceHash = await _sourceHash(sourceFile);
 
     final prior = await (database.select(database.migrationState)
           ..where(
@@ -234,6 +234,10 @@ class LegacyMigrationService {
       sourceHash: sourceHash,
       skipped: List.unmodifiable(snapshot.skipped),
     );
+  }
+
+  Future<String> _sourceHash(File file) async {
+    return sha256.convert(await file.readAsBytes()).toString();
   }
 
   Future<LegacyCalendar> _loadCalendar(
