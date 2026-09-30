@@ -159,6 +159,20 @@ class LegacySkippedEntity {
       };
 }
 
+class LegacyMigrationPreview {
+  final int taskCount;
+  final int tagCount;
+  final int eventCount;
+  final List<LegacySkippedEntity> skipped;
+
+  const LegacyMigrationPreview({
+    required this.taskCount,
+    required this.tagCount,
+    required this.eventCount,
+    required this.skipped,
+  });
+}
+
 class LegacySnapshot {
   final String profileId;
   final LegacySettings settings;
