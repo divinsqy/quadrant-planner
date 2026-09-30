@@ -61,120 +61,127 @@ class _DashboardPageState extends State<DashboardPage> {
       color: Colors.transparent,
       child: SafeArea(
         child: Padding(
-        padding: const EdgeInsets.all(AppTokens.space3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.controller.greeting,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-                IconButton(
-                  tooltip: '搜索',
-                  onPressed: widget.onOpenSearch,
-                  icon: const Icon(Icons.search_rounded),
-                ),
-                const SizedBox(width: 8),
-                const Chip(
-                  avatar: Icon(Icons.cloud_done_outlined, size: 18),
-                  label: Text('本地已保存'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            QuickCapture(taskRepository: widget.taskRepository),
-            const SizedBox(height: 20),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 980;
-                  final quadrant = _Surface(
-                    title: '实时四象限',
-                    child: const Center(
-                      child: Text('象限交互画布将在下一阶段接入'),
+          padding: const EdgeInsets.all(AppTokens.space3),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.controller.greeting,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  );
-                  final focus = _Surface(
-                    title: '现在做什么',
-                    child: recommendation == null
-                        ? const Text('当前没有可执行任务')
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  IconButton(
+                    tooltip: '搜索',
+                    onPressed: widget.onOpenSearch,
+                    icon: const Icon(Icons.search_rounded),
+                  ),
+                  const SizedBox(width: 8),
+                  const Chip(
+                    avatar: Icon(Icons.cloud_done_outlined, size: 18),
+                    label: Text('本地已保存'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              QuickCapture(taskRepository: widget.taskRepository),
+              const SizedBox(height: 20),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final quadrant = _Surface(
+                      title: '实时四象限',
+                      child: const Center(
+                        child: Text('象限交互画布将在下一阶段接入'),
+                      ),
+                    );
+                    final focus = _Surface(
+                      title: '现在做什么',
+                      child: recommendation == null
+                          ? const Text('当前没有可执行任务')
+                          : SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    recommendation.task.title,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  for (final reason
+                                      in recommendation.reasons.take(3))
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 4),
+                                      child: Text('• ${reason.message}'),
+                                    ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    '今日已规划 ${state.todayPlan.blocks.length} 个时间块',
+                                  ),
+                                ],
+                              ),
+                            ),
+                    );
+                    final taskList = _Surface(
+                      title: '任务列表',
+                      child: state.snapshots.isEmpty
+                          ? const Text('还没有已规划任务')
+                          : ListView.builder(
+                              itemCount: state.snapshots.length,
+                              itemBuilder: (context, index) {
+                                final snapshot = state.snapshots[index];
+                                return ListTile(
+                                  dense: true,
+                                  title: Text(snapshot.task.title),
+                                  subtitle: Text(
+                                    '重要性 ${snapshot.task.importance} · '
+                                    '紧急性 ${snapshot.currentUrgency}',
+                                  ),
+                                );
+                              },
+                            ),
+                    );
+
+                    if (constraints.maxWidth < 980) {
+                      return ListView(
+                        children: [
+                          SizedBox(height: 260, child: quadrant),
+                          const SizedBox(height: 16),
+                          SizedBox(height: 190, child: focus),
+                          const SizedBox(height: 16),
+                          SizedBox(height: 240, child: taskList),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
-                                recommendation.task.title,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              for (final reason in recommendation.reasons.take(3))
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text('• ${reason.message}'),
-                                ),
-                              const SizedBox(height: 12),
-                              Text(
-                                '今日已规划 ${state.todayPlan.blocks.length} 个时间块',
-                              ),
+                              Expanded(flex: 2, child: quadrant),
+                              const SizedBox(width: 16),
+                              Expanded(child: focus),
                             ],
                           ),
-                  );
-
-                  return Column(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: wide
-                            ? Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(flex: 2, child: quadrant),
-                                  const SizedBox(width: 16),
-                                  Expanded(child: focus),
-                                ],
-                              )
-                            : Column(
-                                children: [
-                                  Expanded(child: quadrant),
-                                  const SizedBox(height: 16),
-                                  Expanded(child: focus),
-                                ],
-                              ),
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: _Surface(
-                          title: '任务列表',
-                          child: state.snapshots.isEmpty
-                              ? const Text('还没有已规划任务')
-                              : ListView.builder(
-                                  itemCount: state.snapshots.length,
-                                  itemBuilder: (context, index) {
-                                    final snapshot = state.snapshots[index];
-                                    return ListTile(
-                                      dense: true,
-                                      title: Text(snapshot.task.title),
-                                      subtitle: Text(
-                                        '重要性 ${snapshot.task.importance} · '
-                                        '紧急性 ${snapshot.currentUrgency}',
-                                      ),
-                                    );
-                                  },
-                                ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        const SizedBox(height: 16),
+                        Expanded(child: taskList),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
