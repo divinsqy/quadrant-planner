@@ -144,7 +144,7 @@ Document v1 feature set, local-first behavior, migration, build/run commands, an
 - Modify: `pubspec.yaml`
 
 **Interfaces:**
-- App version: `1.0.0+10` for first v1 release candidate unless a later build number is required by existing release history.
+- App version: `1.0.0+9` for the first v1 release candidate, continuing from current build number 8; increment further only for subsequent release candidates.
 - CI runs code generation check, analyze, unit/widget tests, builds release, packages artifacts.
 - macOS script derives artifact architecture from built app/binary and names DMG accurately.
 
