@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 
 import 'tables.dart';
 
@@ -30,6 +33,9 @@ part 'app_database.g.dart';
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
+
+  AppDatabase.open(String path)
+      : super(NativeDatabase.createInBackground(File(path)));
 
   @override
   int get schemaVersion => 1;

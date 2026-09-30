@@ -1,9 +1,13 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/database/app_database.dart';
 import 'legacy_migration_service.dart';
-import 'legacy_models.dart';
+
+export 'legacy_migration_service.dart' show LegacyMigrationPreview;
 
 abstract interface class MigrationGateway {
   Future<bool> isMigrationRequired();
@@ -11,89 +15,32 @@ abstract interface class MigrationGateway {
   Future<void> migrate(DateTime at);
 }
 
-enum MigrationPhase {
-  checking,
-  previewRequired,
-  importing,
-  ready,
-  failed,
-}
-
-class MigrationController extends ChangeNotifier {
-  final MigrationGateway gateway;
-  final DateTime Function() _clock;
-
-  MigrationController({
-    required this.gateway,
-    DateTime Function()? clock,
-  }) : _clock = clock ?? (() => DateTime.now().toUtc());
-
-  MigrationPhase phase = MigrationPhase.checking;
-  LegacyMigrationPreview? previewValue;
-  Object? error;
-
-  Future<void> initialize() async {
-    phase = MigrationPhase.checking;
-    error = null;
-    notifyListeners();
-
-    try {
-      if (!await gateway.isMigrationRequired()) {
-        phase = MigrationPhase.ready;
-        notifyListeners();
-        return;
-      }
-
-      previewValue = await gateway.preview();
-      phase = MigrationPhase.previewRequired;
-      notifyListeners();
-    } catch (caught) {
-      error = caught;
-      phase = MigrationPhase.failed;
-      notifyListeners();
-    }
-  }
-
-  Future<void> importLegacy() async {
-    phase = MigrationPhase.importing;
-    error = null;
-    notifyListeners();
-
-    try {
-      await gateway.migrate(_clock().toUtc());
-      phase = MigrationPhase.ready;
-      notifyListeners();
-    } catch (caught) {
-      error = caught;
-      phase = MigrationPhase.failed;
-      notifyListeners();
-    }
-  }
-
-  Future<void> retry() => initialize();
-
-  void continueWithEmptyV1() {
-    error = null;
-    phase = MigrationPhase.ready;
-    notifyListeners();
-  }
-}
-
-class LegacyMigrationServiceGateway implements MigrationGateway {
-  final LegacyMigrationService service;
+class LegacyMigrationGateway implements MigrationGateway {
+  final AppDatabase database;
   final String legacyDatabasePath;
+  final LegacyMigrationService service;
 
-  const LegacyMigrationServiceGateway({
-    required this.service,
+  const LegacyMigrationGateway({
+    required this.database,
     required this.legacyDatabasePath,
+    required this.service,
   });
 
   @override
   Future<bool> isMigrationRequired() async {
-    if (!await File(legacyDatabasePath).exists()) {
+    final file = File(legacyDatabasePath);
+    if (!await file.exists()) {
       return false;
     }
-    return !(await service.hasSuccessfulMigration());
+
+    final sourceHash = sha256.convert(await file.readAsBytes()).toString();
+    final prior = await (database.select(database.migrationState)
+          ..where(
+            (row) =>
+                row.sourceHash.equals(sourceHash) & row.success.equals(true),
+          ))
+        .getSingleOrNull();
+    return prior == null;
   }
 
   @override
@@ -102,5 +49,80 @@ class LegacyMigrationServiceGateway implements MigrationGateway {
   @override
   Future<void> migrate(DateTime at) async {
     await service.migrate(migrationAt: at);
+  }
+}
+
+enum MigrationStage {
+  checking,
+  previewRequired,
+  importing,
+  failed,
+  ready,
+}
+
+class MigrationController extends ChangeNotifier {
+  final MigrationGateway gateway;
+  final DateTime Function() _clock;
+
+  MigrationStage stage = MigrationStage.checking;
+  LegacyMigrationPreview? preview;
+  Object? error;
+
+  bool _initializing = false;
+
+  MigrationController({
+    required this.gateway,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? (() => DateTime.now().toUtc());
+
+  Future<void> initialize() async {
+    if (_initializing) return;
+    _initializing = true;
+    stage = MigrationStage.checking;
+    error = null;
+    notifyListeners();
+
+    try {
+      if (!await gateway.isMigrationRequired()) {
+        stage = MigrationStage.ready;
+        return;
+      }
+      preview = await gateway.preview();
+      stage = MigrationStage.previewRequired;
+    } catch (caught) {
+      error = caught;
+      stage = MigrationStage.failed;
+    } finally {
+      _initializing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> importLegacy() async {
+    if (stage != MigrationStage.previewRequired &&
+        stage != MigrationStage.failed) {
+      return;
+    }
+
+    stage = MigrationStage.importing;
+    error = null;
+    notifyListeners();
+
+    try {
+      await gateway.migrate(_clock().toUtc());
+      stage = MigrationStage.ready;
+    } catch (caught) {
+      error = caught;
+      stage = MigrationStage.failed;
+    }
+    notifyListeners();
+  }
+
+  Future<void> retry() => initialize();
+
+  void continueWithEmptyV1() {
+    error = null;
+    stage = MigrationStage.ready;
+    notifyListeners();
   }
 }
