@@ -79,7 +79,7 @@ void main() {
     // 2 in old range -15..5 maps to 85 in v1.
     expect(byId['t-active']!.baseUrgency, 85);
     expect(
-      byId['t-active']!.baseUrgencyAnchorAt,
+      byId['t-active']!.baseUrgencyAnchorAt.toUtc(),
       DateTime.utc(2026, 9, 30, 9),
     );
 
