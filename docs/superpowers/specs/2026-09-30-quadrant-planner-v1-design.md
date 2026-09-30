@@ -1,7 +1,7 @@
 # Quadrant Planner v1.0 设计规范
 
 - 日期：2026-09-30
-- 状态：Design approved in conversation; remaining low-level design decisions self-confirmed by user delegation
+- 状态：Detailed design consolidated after user delegation; awaiting final written-spec approval before implementation planning
 - 目标平台：Windows / macOS
 - 产品定位：Local-first 的桌面任务规划工具，以“重要性 × 紧急性”实时象限、可解释的今日执行队列和可追溯周报为核心
 
@@ -290,6 +290,8 @@ currentUrgency = max(ageUrgency, deadlineUrgency)
 
 currentUrgency 为计算值，数据库主要保存 baseUrgency、deadline 和时间锚点，避免无意义频繁写入。
 
+手动修改 baseUrgency 时，同时重置 baseUrgencyAnchorAt；之后的 ageUrgency 从新的基础值和新锚点继续累计，避免旧任务年龄被重复施加到新的人工判断上。
+
 ### 9.3 重算触发
 - create；
 - edit；
@@ -481,7 +483,8 @@ Task / Focus Session 支持“记录本周笔记”，结构可包含：
 - temporary filters/search
 - scroll position
 - cache
-- tokens in plaintext
+
+认证凭证使用操作系统安全存储（flutter_secure_storage / Keychain / Windows Credential-backed storage）；禁止把 access token / refresh token 以明文写入 Drift/SQLite、日志或备份包。
 
 ### 13.2 冲突
 不同字段变化可自动 merge。
