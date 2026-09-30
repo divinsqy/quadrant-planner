@@ -76,10 +76,14 @@ class Milestones extends Table {
 @DataClassName('DependencyRow')
 class Dependencies extends Table {
   TextColumn get id => text()();
+  @ReferenceName('dependentTaskDependencies')
   TextColumn get taskId =>
       text().references(Tasks, #id, onDelete: KeyAction.cascade)();
+
+  @ReferenceName('prerequisiteTaskDependencies')
   TextColumn get dependsOnTaskId =>
       text().references(Tasks, #id, onDelete: KeyAction.cascade)();
+
   DateTimeColumn get createdAt => dateTime()();
 
   @override
