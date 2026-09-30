@@ -77,7 +77,7 @@ class _StartupGateState extends State<_StartupGate> {
         if (snapshot.hasError) {
           return Center(
             child: SelectableText(
-              '启动失败：' + snapshot.error.toString(),
+              '启动失败：\${snapshot.error}',
             ),
           );
         }
