@@ -741,7 +741,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           final email = await _prompt(context, '登录邮箱');
                           if (email == null) return;
                           await widget.sync.requestOtp(email);
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           final code = await _prompt(context, '输入邮箱验证码');
                           if (code == null) return;
                           await widget.sync.verifyOtp(email, code);
