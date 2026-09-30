@@ -188,12 +188,13 @@ class _Surface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surface,
+    return Material(
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTokens.radiusMedium),
-        border: Border.all(color: scheme.outlineVariant),
+        side: BorderSide(color: scheme.outlineVariant),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(AppTokens.space2),
         child: Column(
