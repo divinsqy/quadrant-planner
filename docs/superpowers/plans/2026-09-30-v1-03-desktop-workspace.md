@@ -39,8 +39,11 @@
 - Create: `lib/app/theme/app_tokens.dart`
 - Create: `lib/app/router/app_router.dart`
 - Create: `lib/app/shell/app_shell.dart`
+- Create: `lib/features/search/application/global_search_controller.dart`
+- Create: `lib/features/search/presentation/command_palette.dart`
 - Modify: `lib/app/quadrant_planner_app.dart`
 - Test: `test/app/app_shell_test.dart`
+- Test: `test/features/search/command_palette_test.dart`
 
 **Interfaces:**
 - Produces route names: `dashboard, inbox, tasks, projects, planner, reports, settings, taskDetail, projectDetail`.
@@ -49,11 +52,11 @@
 
 - [ ] **Step 1: Write failing shell tests**
 
-Assert Dashboard default, seven destinations, system/light/dark theme mode, and Ctrl/Cmd+1..7 navigation intents.
+Assert Dashboard default, seven destinations, system/light/dark theme mode, Ctrl/Cmd+1..7 navigation intents, Ctrl/Cmd+K opens global search, and search results can navigate to a task/project.
 
 - [ ] **Step 2: Implement tokens/theme/router/shell**
 
-Use 8px spacing scale, 10–14px standard radii, 1px neutral borders; shadows only for floating layers.
+Use 8px spacing scale, 10–14px standard radii, 1px neutral borders; shadows only for floating layers. Implement Command Palette search across task title/description, project name/objective, and tags using repository queries rather than widget-local filtering.
 
 - [ ] **Step 3: Verify**
 
@@ -101,17 +104,20 @@ Run targeted test; commit `feat: add dashboard workspace shell`.
 - Create: `lib/features/dashboard/quadrant/quadrant_hit_test.dart`
 - Create: `lib/features/dashboard/quadrant/quadrant_clusterer.dart`
 - Create: `lib/features/dashboard/quadrant/quadrant_viewport.dart`
+- Create: `lib/features/dashboard/quadrant/task_trajectory_builder.dart`
+- Test: `test/features/dashboard/quadrant/task_trajectory_builder_test.dart`
 - Test: `test/features/dashboard/quadrant/quadrant_clusterer_test.dart`
 - Test: `test/features/dashboard/quadrant/quadrant_board_test.dart`
 
 **Interfaces:**
 - `QuadrantBoard(tasks, thresholds, selectedTaskId, onSelect, onOpen, onThresholdChanged)`.
 - `QuadrantClusterer.cluster(points, viewport, radiusPx)`.
+- `TaskTrajectoryBuilder.build(taskId, activity, dateRange) -> List<TaskTrajectoryPoint>` reconstructs historical daily positions from field-change activity plus Plan 02 UrgencyEngine, without writing daily DB snapshots.
 - Viewport supports pan/zoom/reset and data<->screen conversion.
 
 - [ ] **Step 1: Write failing clustering/math tests**
 
-Assert coordinate transforms, coincident point clustering, cluster expansion member retention, threshold clamp 0..100.
+Assert coordinate transforms, coincident point clustering, cluster expansion member retention, threshold clamp 0..100, and trajectory reconstruction across a base-urgency/deadline change.
 
 - [ ] **Step 2: Write failing interaction widget tests**
 
@@ -119,7 +125,7 @@ Hover/focus shows metadata; single click selects and opens preview callback; dou
 
 - [ ] **Step 3: Implement painter + hit-test layer**
 
-Paint quadrant backgrounds/grid/thresholds/points in one painter. Maintain spatial hit-test index for pointer interactions. Add semantics/focus nodes at cluster/member level without rendering every point as a heavyweight widget.
+Paint quadrant backgrounds/grid/thresholds/points in one painter. Maintain spatial hit-test index for pointer interactions. Add semantics/focus nodes at cluster/member level without rendering every point as a heavyweight widget. When a task is selected, paint its reconstructed trajectory tail; trajectory is derived, not persisted every day.
 
 - [ ] **Step 4: Verify**
 
@@ -145,6 +151,7 @@ Run quadrant tests plus `flutter analyze`.
 **Interfaces:**
 - Preview supports lightweight edits and status actions.
 - Full detail tabs: Overview, Subtasks, Dependencies, Activity.
+- Activity repository/page uses pagination rather than loading unbounded history.
 - Single click from quadrant updates drawer; double click routes to `/tasks/:id`.
 
 - [ ] **Step 1: Write failing flow tests**
