@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'theme/app_theme.dart';
+
 import '../core/database/app_database.dart';
 import '../core/database/database_paths.dart';
 import '../migration/legacy_migration_service.dart';
@@ -14,7 +16,9 @@ class QuadrantPlannerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Quadrant Planner',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.system,
       home: const _StartupGate(),
     );
   }
