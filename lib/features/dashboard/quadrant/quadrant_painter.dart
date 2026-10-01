@@ -288,6 +288,7 @@ class QuadrantPainter extends CustomPainter {
           ),
           properties: SemanticsProperties(
             label: label,
+            textDirection: TextDirection.ltr,
             button: true,
           ),
         );
