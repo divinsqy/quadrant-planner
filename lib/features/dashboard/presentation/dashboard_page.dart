@@ -70,10 +70,10 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final state = widget.controller.state;
     final recommendation = state.currentRecommendation;
-    final selectedSnapshot = state.snapshots
-        .where((snapshot) => snapshot.task.id == _selectedTaskId)
-        .firstOrNull;
-    final selectedTask = selectedSnapshot?.task;
+    final selectedMatches = state.snapshots
+        .where((snapshot) => snapshot.task.id == _selectedTaskId);
+    final selectedTask =
+        selectedMatches.isEmpty ? null : selectedMatches.first.task;
 
     return Material(
       color: Colors.transparent,
