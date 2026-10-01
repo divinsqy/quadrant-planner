@@ -147,6 +147,9 @@ void main() {
   });
 
   testWidgets('Profile Settings persists an edited nickname', (tester) async {
+    // Diagnostic markers are temporary and removed after the hang is located.
+    // ignore: avoid_print
+    print('PROFILE_DIAG:start');
     await tester
         .pumpWidget(
           MaterialApp(
@@ -163,18 +166,26 @@ void main() {
       const Duration(seconds: 5),
       onTimeout: () => throw StateError('profile initial settle timeout'),
     );
+    // ignore: avoid_print
+    print('PROFILE_DIAG:initial-settle-done');
 
     await tester.enterText(find.byType(TextField), 'Divins');
     await tester.tap(find.text('保存昵称'));
+    // ignore: avoid_print
+    print('PROFILE_DIAG:tap-done');
     await tester.pumpAndSettle().timeout(
       const Duration(seconds: 5),
       onTimeout: () => throw StateError('profile post-save settle timeout'),
     );
+    // ignore: avoid_print
+    print('PROFILE_DIAG:post-save-settle-done');
 
     final saved = await preferences.watch().first.timeout(
       const Duration(seconds: 5),
       onTimeout: () => throw StateError('profile repository watch timeout'),
     );
+    // ignore: avoid_print
+    print('PROFILE_DIAG:watch-done');
     expect(saved.nickname, 'Divins');
   });
 }
