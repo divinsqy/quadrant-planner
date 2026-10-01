@@ -11,6 +11,8 @@ import 'package:quadrant_planner/features/dashboard/presentation/dashboard_page.
 import 'package:quadrant_planner/features/inbox/presentation/quick_capture.dart';
 import 'package:quadrant_planner/features/settings/data/preferences_repository.dart';
 import 'package:quadrant_planner/features/settings/presentation/profile_settings.dart';
+import 'package:quadrant_planner/features/tasks/application/task_editor_controller.dart';
+import 'package:quadrant_planner/features/tasks/data/task_activity_repository.dart';
 import 'package:quadrant_planner/features/tasks/data/task_repository.dart';
 
 void main() {
@@ -18,6 +20,8 @@ void main() {
   late TaskRepository tasks;
   late PreferencesRepository preferences;
   late DashboardController dashboard;
+  late TaskActivityRepository activity;
+  late TaskEditorController editor;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -31,6 +35,16 @@ void main() {
       clock: () => DateTime.utc(2026, 9, 30, 9),
     );
     preferences = PreferencesRepository(db);
+    var eventId = 0;
+    activity = TaskActivityRepository(
+      db,
+      idFactory: () => 'event-${++eventId}',
+    );
+    editor = TaskEditorController(
+      tasks: tasks,
+      activity: activity,
+      clock: () => DateTime.utc(2026, 9, 30, 9),
+    );
     dashboard = DashboardController(
       tasks: tasks,
       preferences: preferences,
@@ -171,4 +185,51 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
+
+  testWidgets('quadrant selection opens task preview and double click opens detail', (
+    tester,
+  ) async {
+    final task = await tasks.createTask(
+      const TaskDraft(
+        title: 'Centered Task',
+        status: TaskStatus.planned,
+        importance: 50,
+        baseUrgency: 50,
+        estimatedMinutes: 60,
+      ),
+    );
+    String? opened;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DashboardPage(
+          controller: dashboard,
+          taskRepository: tasks,
+          taskEditor: editor,
+          onOpenTask: (id) => opened = id,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final board = find.byKey(const ValueKey('quadrant-board-focus'));
+    expect(board, findsOneWidget);
+    final center = tester.getCenter(board);
+
+    await tester.tapAt(center);
+    await tester.pump();
+
+    expect(find.text('标记完成'), findsOneWidget);
+
+    await tester.tapAt(center);
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.tapAt(center);
+    await tester.pump();
+
+    expect(opened, task.id);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
 }
