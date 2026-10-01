@@ -54,7 +54,10 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
   Size _size = Size.zero;
   _DragMode _dragMode = _DragMode.none;
   String? _localSelectedTaskId;
-  Offset? _doubleTapPosition;
+  Duration? _lastClickTime;
+  Offset? _lastClickPosition;
+  String? _lastClickTaskId;
+  bool _lastClickWasEmpty = false;
 
   String? get _selectedTaskId =>
       widget.selectedTaskId ?? _localSelectedTaskId;
@@ -103,39 +106,72 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
   void _handlePointerDown(PointerDownEvent event) {
     _focusNode.requestFocus();
     _beginPointerDrag(event.localPosition);
+
     final hit = _hit(event.localPosition);
-    if (hit == null || hit.members.isEmpty) {
-      return;
-    }
-    final id = hit.members.first.id;
-    setState(() {
-      _localSelectedTaskId = id;
-    });
-    widget.onSelect?.call(id);
-  }
+    final id = hit == null || hit.members.isEmpty
+        ? null
+        : hit.members.first.id;
 
-  void _handleDoubleTapDown(TapDownDetails details) {
-    _doubleTapPosition = details.localPosition;
-  }
+    final isDoubleClick = _isDoubleClick(
+      time: event.timeStamp,
+      position: event.localPosition,
+      taskId: id,
+    );
 
-  void _handleDoubleTap() {
-    final position = _doubleTapPosition;
-    if (position == null) {
-      return;
-    }
-    final hit = _hit(position);
-    if (hit != null && hit.members.isNotEmpty) {
-      final id = hit.members.first.id;
+    if (id != null) {
       setState(() {
         _localSelectedTaskId = id;
       });
-      widget.onOpen?.call(id);
-      return;
+      widget.onSelect?.call(id);
+      if (isDoubleClick) {
+        widget.onOpen?.call(id);
+      }
+    } else if (isDoubleClick) {
+      setState(() {
+        _viewport = const QuadrantViewport();
+      });
     }
 
-    setState(() {
-      _viewport = const QuadrantViewport();
-    });
+    _rememberClick(
+      time: event.timeStamp,
+      position: event.localPosition,
+      taskId: id,
+    );
+  }
+
+  bool _isDoubleClick({
+    required Duration time,
+    required Offset position,
+    required String? taskId,
+  }) {
+    final previousTime = _lastClickTime;
+    final previousPosition = _lastClickPosition;
+    if (previousTime == null || previousPosition == null) {
+      return false;
+    }
+
+    final elapsed = time - previousTime;
+    if (elapsed.isNegative ||
+        elapsed > const Duration(milliseconds: 350) ||
+        (position - previousPosition).distance > 18) {
+      return false;
+    }
+
+    if (taskId != null) {
+      return !_lastClickWasEmpty && _lastClickTaskId == taskId;
+    }
+    return _lastClickWasEmpty;
+  }
+
+  void _rememberClick({
+    required Duration time,
+    required Offset position,
+    required String? taskId,
+  }) {
+    _lastClickTime = time;
+    _lastClickPosition = position;
+    _lastClickTaskId = taskId;
+    _lastClickWasEmpty = taskId == null;
   }
 
   void _beginPointerDrag(Offset position) {
@@ -295,38 +331,34 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
               }
             },
             child: Listener(
+              behavior: HitTestBehavior.opaque,
               onPointerDown: _handlePointerDown,
               onPointerMove: _handlePointerMove,
               onPointerUp: _handlePointerUp,
               onPointerCancel: _handlePointerUp,
               onPointerSignal: _handlePointerSignal,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onDoubleTapDown: _handleDoubleTapDown,
-                onDoubleTap: _handleDoubleTap,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: QuadrantPainter(
-                          clusters: clusters,
-                          viewport: _viewport,
-                          thresholds: _thresholds,
-                          padding: _plotPadding,
-                          selectedTaskId: _selectedTaskId,
-                          trajectory: widget.trajectory,
-                          colorScheme: scheme,
-                        ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: QuadrantPainter(
+                        clusters: clusters,
+                        viewport: _viewport,
+                        thresholds: _thresholds,
+                        padding: _plotPadding,
+                        selectedTaskId: _selectedTaskId,
+                        trajectory: widget.trajectory,
+                        colorScheme: scheme,
                       ),
                     ),
-                    if (_hovered != null)
-                      _HoverCard(
-                        cluster: _hovered!,
-                        canvasSize: size,
-                      ),
-                  ],
-                ),
+                  ),
+                  if (_hovered != null)
+                    _HoverCard(
+                      cluster: _hovered!,
+                      canvasSize: size,
+                    ),
+                ],
               ),
             ),
           );
