@@ -21,17 +21,19 @@ void main() {
       ),
     );
 
+    final boardCenter =
+        tester.getCenter(find.byKey(const ValueKey('quadrant-board-focus')));
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: const Offset(300, 200));
+    await mouse.addPointer(location: boardCenter);
     addTearDown(mouse.removePointer);
-    await mouse.moveTo(const Offset(300, 200));
+    await mouse.moveTo(boardCenter);
     await tester.pump();
 
     expect(find.text('Hover Task'), findsOneWidget);
     expect(find.textContaining('紧急性 50'), findsOneWidget);
     expect(find.textContaining('重要性 50'), findsOneWidget);
 
-    await tester.tapAt(const Offset(300, 200));
+    await tester.tapAt(boardCenter);
     await tester.pump();
 
     expect(selected, 'hover');
@@ -49,9 +51,11 @@ void main() {
       ),
     );
 
-    await tester.tapAt(const Offset(300, 200));
+    final boardCenter =
+        tester.getCenter(find.byKey(const ValueKey('quadrant-board-focus')));
+    await tester.tapAt(boardCenter);
     await tester.pump(const Duration(milliseconds: 40));
-    await tester.tapAt(const Offset(300, 200));
+    await tester.tapAt(boardCenter);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(opened, contains('open'));
@@ -75,10 +79,12 @@ void main() {
       ),
     );
 
+    final boardCenter =
+        tester.getCenter(find.byKey(const ValueKey('quadrant-board-focus')));
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: const Offset(300, 200));
+    await mouse.addPointer(location: boardCenter);
     addTearDown(mouse.removePointer);
-    await mouse.moveTo(const Offset(300, 200));
+    await mouse.moveTo(boardCenter);
     await tester.pump();
 
     expect(find.text('2 个任务'), findsOneWidget);
@@ -101,8 +107,10 @@ void main() {
       ),
     );
 
+    final rect =
+        tester.getRect(find.byKey(const ValueKey('quadrant-board-focus')));
     await tester.dragFrom(
-      const Offset(300, 80),
+      Offset(rect.center.dx, rect.top + 80),
       const Offset(80, 0),
     );
     await tester.pump();
