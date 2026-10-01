@@ -100,9 +100,9 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
     });
   }
 
-  void _handleTapUp(TapUpDetails details) {
+  void _handlePointerDown(PointerDownEvent event) {
     _focusNode.requestFocus();
-    final hit = _hit(details.localPosition);
+    final hit = _hit(event.localPosition);
     if (hit == null || hit.members.isEmpty) {
       return;
     }
@@ -292,10 +292,10 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
               }
             },
             child: Listener(
+              onPointerDown: _handlePointerDown,
               onPointerSignal: _handlePointerSignal,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTapUp: _handleTapUp,
                 onDoubleTapDown: _handleDoubleTapDown,
                 onDoubleTap: _handleDoubleTap,
                 onPanStart: _handlePanStart,
