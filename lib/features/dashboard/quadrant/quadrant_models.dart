@@ -21,8 +21,8 @@ class QuadrantThresholds {
 
   QuadrantThresholds clamped() {
     return QuadrantThresholds(
-      urgency: urgency.clamp(0, 100),
-      importance: importance.clamp(0, 100),
+      urgency: urgency.clamp(0, 100).toInt(),
+      importance: importance.clamp(0, 100).toInt(),
     );
   }
 
