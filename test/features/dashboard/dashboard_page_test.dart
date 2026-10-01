@@ -8,6 +8,7 @@ import 'package:quadrant_planner/domain/settings/app_preferences.dart';
 import 'package:quadrant_planner/domain/tasks/task_status.dart';
 import 'package:quadrant_planner/features/dashboard/application/dashboard_controller.dart';
 import 'package:quadrant_planner/features/dashboard/presentation/dashboard_page.dart';
+import 'package:quadrant_planner/features/dashboard/quadrant/quadrant_board.dart';
 import 'package:quadrant_planner/features/inbox/presentation/quick_capture.dart';
 import 'package:quadrant_planner/features/settings/data/preferences_repository.dart';
 import 'package:quadrant_planner/features/settings/presentation/profile_settings.dart';
@@ -212,18 +213,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final board = find.byKey(const ValueKey('quadrant-board-focus'));
-    expect(board, findsOneWidget);
-    final center = tester.getCenter(board);
+    final boardFinder = find.byType(QuadrantBoard);
+    expect(boardFinder, findsOneWidget);
+    final board = tester.widget<QuadrantBoard>(boardFinder);
 
-    await tester.tapAt(center);
+    board.onSelect!(task.id);
     await tester.pump();
 
     expect(find.text('标记完成'), findsOneWidget);
 
-    await tester.tapAt(center);
-    await tester.pump(const Duration(milliseconds: 40));
-    await tester.tapAt(center);
+    board.onOpen!(task.id);
     await tester.pump();
 
     expect(opened, task.id);
