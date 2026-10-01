@@ -106,6 +106,25 @@ class TaskRepository {
         );
   }
 
+  Stream<List<Task>> watchTasks({
+    Set<TaskStatus>? statuses,
+  }) {
+    final query = _db.select(_db.tasks)
+      ..where((row) {
+        var expression = row.deletedAt.isNull();
+        if (statuses != null && statuses.isNotEmpty) {
+          expression = expression & row.status.isIn(
+            statuses.map((status) => status.name).toList(growable: false),
+          );
+        }
+        return expression;
+      })
+      ..orderBy([(row) => OrderingTerm.desc(row.updatedAt)]);
+    return query.watch().map(
+          (rows) => rows.map(_fromRow).toList(growable: false),
+        );
+  }
+
   Stream<List<Task>> watchExecutableTasks() {
     final query = _db.select(_db.tasks)
       ..where(
