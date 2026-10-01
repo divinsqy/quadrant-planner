@@ -102,6 +102,7 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
 
   void _handlePointerDown(PointerDownEvent event) {
     _focusNode.requestFocus();
+    _beginPointerDrag(event.localPosition);
     final hit = _hit(event.localPosition);
     if (hit == null || hit.members.isEmpty) {
       return;
@@ -137,9 +138,11 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
     });
   }
 
-  void _handlePanStart(DragStartDetails details) {
-    _focusNode.requestFocus();
-    final position = details.localPosition;
+  void _beginPointerDrag(Offset position) {
+    if (_size.isEmpty) {
+      _dragMode = _DragMode.none;
+      return;
+    }
     final thresholdScreen = _viewport.dataToScreen(
       Offset(
         _thresholds.urgency.toDouble(),
@@ -158,15 +161,15 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
     }
   }
 
-  void _handlePanUpdate(DragUpdateDetails details) {
-    if (_size.isEmpty) {
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (_size.isEmpty || _dragMode == _DragMode.none) {
       return;
     }
 
     switch (_dragMode) {
       case _DragMode.urgencyThreshold:
         final data = _viewport.screenToData(
-          details.localPosition,
+          event.localPosition,
           _size,
           _plotPadding,
         );
@@ -177,7 +180,7 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
         }
       case _DragMode.importanceThreshold:
         final data = _viewport.screenToData(
-          details.localPosition,
+          event.localPosition,
           _size,
           _plotPadding,
         );
@@ -191,10 +194,10 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
         final span = _viewport.visibleSpan;
         final dx = rect.width == 0
             ? 0.0
-            : -details.delta.dx / rect.width * span;
+            : -event.delta.dx / rect.width * span;
         final dy = rect.height == 0
             ? 0.0
-            : details.delta.dy / rect.height * span;
+            : event.delta.dy / rect.height * span;
         setState(() {
           _viewport = _viewport.panByData(Offset(dx, dy));
         });
@@ -203,7 +206,7 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
     }
   }
 
-  void _handlePanEnd(DragEndDetails details) {
+  void _handlePointerUp(PointerEvent event) {
     _dragMode = _DragMode.none;
   }
 
@@ -293,14 +296,14 @@ class _QuadrantBoardState extends State<QuadrantBoard> {
             },
             child: Listener(
               onPointerDown: _handlePointerDown,
+              onPointerMove: _handlePointerMove,
+              onPointerUp: _handlePointerUp,
+              onPointerCancel: _handlePointerUp,
               onPointerSignal: _handlePointerSignal,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onDoubleTapDown: _handleDoubleTapDown,
                 onDoubleTap: _handleDoubleTap,
-                onPanStart: _handlePanStart,
-                onPanUpdate: _handlePanUpdate,
-                onPanEnd: _handlePanEnd,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
