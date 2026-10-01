@@ -93,6 +93,12 @@ class TaskRepository {
         );
   }
 
+  Future<Task?> get(String id) async {
+    final query = _db.select(_db.tasks)..where((row) => row.id.equals(id));
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _fromRow(row);
+  }
+
   Stream<Task?> watchTask(String id) {
     final query = _db.select(_db.tasks)..where((row) => row.id.equals(id));
     return query.watchSingleOrNull().map(
