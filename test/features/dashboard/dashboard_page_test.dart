@@ -160,13 +160,15 @@ void main() {
     await tester.tap(find.text('保存昵称'));
     await tester.pump();
 
-    final saved = await preferences.watch().first;
+    final saved = await (db.select(db.preferences)
+          ..where((row) => row.id.equals('default')))
+        .getSingle();
     expect(saved.nickname, 'Divins');
     expect(find.text('已保存'), findsOneWidget);
 
     // Unmount before the shared tearDown closes the Drift database so the
-    // widget-owned preferences stream is cancelled first.
+    // widget-owned preferences stream is fully cancelled first.
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pumpAndSettle();
   });
 }
