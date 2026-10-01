@@ -70,15 +70,15 @@ class QuadrantViewport {
   static Offset _clampCenter(Offset value, double zoom) {
     final half = 50 / zoom;
     return Offset(
-      value.dx.clamp(half, 100 - half),
-      value.dy.clamp(half, 100 - half),
+      value.dx.clamp(half, 100 - half).toDouble(),
+      value.dy.clamp(half, 100 - half).toDouble(),
     );
   }
 
   static Rect _plotRect(Size size, EdgeInsets padding) {
-    final width = (size.width - padding.horizontal).clamp(1.0, double.infinity);
+    final width = (size.width - padding.horizontal).clamp(1.0, double.infinity).toDouble();
     final height =
-        (size.height - padding.vertical).clamp(1.0, double.infinity);
+        (size.height - padding.vertical).clamp(1.0, double.infinity).toDouble();
     return Rect.fromLTWH(
       padding.left,
       padding.top,
