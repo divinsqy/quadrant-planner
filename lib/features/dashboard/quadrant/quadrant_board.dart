@@ -347,8 +347,22 @@ class _HoverCard extends StatelessWidget {
     const width = 240.0;
     final desiredLeft = cluster.screenCenter.dx + 14;
     final desiredTop = cluster.screenCenter.dy + 14;
-    final left = desiredLeft.clamp(8.0, (canvasSize.width - width - 8).clamp(8.0, double.infinity));
-    final top = desiredTop.clamp(8.0, (canvasSize.height - 150).clamp(8.0, double.infinity));
+    final left = desiredLeft
+        .clamp(
+          8.0,
+          (canvasSize.width - width - 8)
+              .clamp(8.0, double.infinity)
+              .toDouble(),
+        )
+        .toDouble();
+    final top = desiredTop
+        .clamp(
+          8.0,
+          (canvasSize.height - 150)
+              .clamp(8.0, double.infinity)
+              .toDouble(),
+        )
+        .toDouble();
 
     return Positioned(
       left: left,
