@@ -147,45 +147,26 @@ void main() {
   });
 
   testWidgets('Profile Settings persists an edited nickname', (tester) async {
-    // Diagnostic markers are temporary and removed after the hang is located.
-    // ignore: avoid_print
-    print('PROFILE_DIAG:start');
-    await tester
-        .pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ProfileSettings(preferences: preferences),
-            ),
-          ),
-        )
-        .timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => throw StateError('profile pumpWidget timeout'),
-        );
-    await tester.pumpAndSettle().timeout(
-      const Duration(seconds: 5),
-      onTimeout: () => throw StateError('profile initial settle timeout'),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfileSettings(preferences: preferences),
+        ),
+      ),
     );
-    // ignore: avoid_print
-    print('PROFILE_DIAG:initial-settle-done');
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Divins');
     await tester.tap(find.text('保存昵称'));
-    // ignore: avoid_print
-    print('PROFILE_DIAG:tap-done');
-    await tester.pumpAndSettle().timeout(
-      const Duration(seconds: 5),
-      onTimeout: () => throw StateError('profile post-save settle timeout'),
-    );
-    // ignore: avoid_print
-    print('PROFILE_DIAG:post-save-settle-done');
+    await tester.pump();
 
-    final saved = await preferences.watch().first.timeout(
-      const Duration(seconds: 5),
-      onTimeout: () => throw StateError('profile repository watch timeout'),
-    );
-    // ignore: avoid_print
-    print('PROFILE_DIAG:watch-done');
+    final saved = await preferences.watch().first;
     expect(saved.nickname, 'Divins');
+    expect(find.text('已保存'), findsOneWidget);
+
+    // Unmount before the shared tearDown closes the Drift database so the
+    // widget-owned preferences stream is cancelled first.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }
