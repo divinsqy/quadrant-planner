@@ -105,7 +105,7 @@ class _ActivityTab extends StatelessWidget {
         return ListView.separated(
           padding: const EdgeInsets.all(24),
           itemCount: events.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
+          separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) {
             final event = events[index];
             return ListTile(
