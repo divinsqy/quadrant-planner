@@ -1,10 +1,14 @@
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quadrant_planner/core/database/app_database.dart';
 import 'package:quadrant_planner/domain/tasks/task_status.dart';
 import 'package:quadrant_planner/features/tasks/application/task_editor_controller.dart';
 import 'package:quadrant_planner/features/tasks/data/task_activity_repository.dart';
 import 'package:quadrant_planner/features/tasks/data/task_repository.dart';
+import 'package:quadrant_planner/features/tasks/presentation/task_detail_page.dart';
+import 'package:quadrant_planner/features/tasks/presentation/task_preview_drawer.dart';
+import 'package:quadrant_planner/features/inbox/presentation/inbox_page.dart';
 
 void main() {
   late AppDatabase db;
@@ -182,4 +186,102 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('task preview can complete a task', (tester) async {
+    final task = await tasks.createTask(
+      const TaskDraft(
+        title: 'Preview Task',
+        status: TaskStatus.inProgress,
+        progress: 25,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TaskPreviewDrawer(
+            task: task,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preview Task'), findsOneWidget);
+    await tester.tap(find.text('标记完成'));
+    await tester.pumpAndSettle();
+
+    final saved = await tasks.get(task.id);
+    expect(saved!.status, TaskStatus.completed);
+    expect(saved.progress, 100);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('task detail exposes four lifecycle tabs', (tester) async {
+    final task = await tasks.createTask(
+      const TaskDraft(
+        title: 'Detail Task',
+        status: TaskStatus.planned,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TaskDetailPage(
+          taskId: task.id,
+          tasks: tasks,
+          editor: controller,
+          activity: activity,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Overview'), findsOneWidget);
+    expect(find.text('Subtasks'), findsOneWidget);
+    expect(find.text('Dependencies'), findsOneWidget);
+    expect(find.text('Activity'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('Inbox shows only inbox tasks and can plan one', (tester) async {
+    final inbox = await tasks.createTask(
+      const TaskDraft(title: 'Inbox Task'),
+    );
+    await tasks.createTask(
+      const TaskDraft(
+        title: 'Planned Task',
+        status: TaskStatus.planned,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InboxPage(
+            tasks: tasks,
+            editor: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Inbox Task'), findsOneWidget);
+    expect(find.text('Planned Task'), findsNothing);
+
+    await tester.tap(find.text('规划'));
+    await tester.pumpAndSettle();
+
+    expect((await tasks.get(inbox.id))!.status, TaskStatus.planned);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
 }
