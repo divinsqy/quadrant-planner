@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import '../../../domain/planning/planner_candidate.dart';
 import '../../../domain/tasks/task_status.dart';
 import '../../../domain/tasks/workload.dart';
@@ -48,6 +50,7 @@ class QuadrantThresholds {
 class QuadrantTaskPoint {
   final String id;
   final String title;
+  final String description;
   final String? projectId;
   final int urgency;
   final int importance;
@@ -58,6 +61,7 @@ class QuadrantTaskPoint {
   const QuadrantTaskPoint({
     required this.id,
     required this.title,
+    this.description = '',
     required this.projectId,
     required this.urgency,
     required this.importance,
@@ -71,6 +75,7 @@ class QuadrantTaskPoint {
     return QuadrantTaskPoint(
       id: task.id,
       title: task.title,
+      description: task.description,
       projectId: task.projectId,
       urgency: snapshot.currentUrgency,
       importance: task.importance,
