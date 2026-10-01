@@ -33,7 +33,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Diagnose Dashboard tests
-        run: timeout 90s flutter test test/features/dashboard/dashboard_page_test.dart -r expanded
+        run: timeout 30s flutter test test/features/dashboard/dashboard_page_test.dart --plain-name "Profile Settings persists an edited nickname" -r expanded
 
       - name: Test
         run: flutter test -r expanded
