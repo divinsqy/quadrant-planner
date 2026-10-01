@@ -48,8 +48,8 @@ class QuadrantPainter extends CustomPainter {
     Rect rect,
     Offset thresholdPoint,
   ) {
-    final x = thresholdPoint.dx.clamp(rect.left, rect.right);
-    final y = thresholdPoint.dy.clamp(rect.top, rect.bottom);
+    final x = thresholdPoint.dx.clamp(rect.left, rect.right).toDouble();
+    final y = thresholdPoint.dy.clamp(rect.top, rect.bottom).toDouble();
 
     final planPaint = Paint()
       ..color = colorScheme.primaryContainer.withValues(alpha: 0.22);
