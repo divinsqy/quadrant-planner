@@ -38,6 +38,10 @@ void main() {
     await tester.pump();
 
     expect(selected, 'hover');
+
+    // Let the double-click recognizer's single-click timeout expire before
+    // the widget-test binding verifies there are no pending timers.
+    await tester.pump(const Duration(milliseconds: 400));
   });
 
   testWidgets('double click and keyboard Enter open the selected task', (
@@ -61,7 +65,7 @@ void main() {
 
     expect(opened, contains('open'));
 
-    await tester.tap(find.byKey(const ValueKey('quadrant-board-focus')));
+    // The double click already focuses the board via pointer-down.
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
 
