@@ -2,19 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_tokens.dart';
 import '../../inbox/presentation/quick_capture.dart';
+import '../../tasks/application/task_editor_controller.dart';
 import '../../tasks/data/task_repository.dart';
+import '../../tasks/presentation/task_preview_drawer.dart';
 import '../application/dashboard_controller.dart';
+import '../quadrant/quadrant_board.dart';
+import '../quadrant/quadrant_models.dart';
 
 class DashboardPage extends StatefulWidget {
   final DashboardController controller;
   final TaskRepository taskRepository;
+  final TaskEditorController? taskEditor;
   final VoidCallback? onOpenSearch;
+  final ValueChanged<String>? onOpenTask;
 
   const DashboardPage({
     super.key,
     required this.controller,
     required this.taskRepository,
+    this.taskEditor,
     this.onOpenSearch,
+    this.onOpenTask,
   });
 
   @override
@@ -22,6 +30,8 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  String? _selectedTaskId;
+
   @override
   void initState() {
     super.initState();
@@ -52,10 +62,18 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  void _selectTask(String id) {
+    setState(() => _selectedTaskId = id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.controller.state;
     final recommendation = state.currentRecommendation;
+    final selectedSnapshot = state.snapshots
+        .where((snapshot) => snapshot.task.id == _selectedTaskId)
+        .firstOrNull;
+    final selectedTask = selectedSnapshot?.task;
 
     return Material(
       color: Colors.transparent,
@@ -93,39 +111,70 @@ class _DashboardPageState extends State<DashboardPage> {
                   builder: (context, constraints) {
                     final quadrant = _Surface(
                       title: '实时四象限',
-                      child: const Center(
-                        child: Text('象限交互画布将在下一阶段接入'),
+                      child: QuadrantBoard(
+                        tasks: state.snapshots,
+                        thresholds: QuadrantThresholds(
+                          urgency: state.preferences.urgencyThreshold,
+                          importance: state.preferences.importanceThreshold,
+                        ),
+                        selectedTaskId: _selectedTaskId,
+                        onSelect: _selectTask,
+                        onOpen: widget.onOpenTask,
+                        onThresholdChanged: (thresholds) {
+                          widget.controller.updateThresholds(thresholds);
+                        },
                       ),
                     );
-                    final focus = _Surface(
-                      title: '现在做什么',
-                      child: recommendation == null
-                          ? const Text('当前没有可执行任务')
-                          : SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    recommendation.task.title,
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  for (final reason
-                                      in recommendation.reasons.take(3))
-                                    Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 4),
-                                      child: Text('• ${reason.message}'),
-                                    ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    '今日已规划 ${state.todayPlan.blocks.length} 个时间块',
-                                  ),
-                                ],
-                              ),
+
+                    final focus = selectedTask != null &&
+                            widget.taskEditor != null
+                        ? _Surface(
+                            title: '任务详情',
+                            child: TaskPreviewDrawer(
+                              task: selectedTask,
+                              controller: widget.taskEditor!,
+                              onClose: () =>
+                                  setState(() => _selectedTaskId = null),
+                              onOpenDetail: widget.onOpenTask == null
+                                  ? null
+                                  : () => widget.onOpenTask!(selectedTask.id),
                             ),
-                    );
+                          )
+                        : _Surface(
+                            title: '现在做什么',
+                            child: recommendation == null
+                                ? const Text('当前没有可执行任务')
+                                : SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          recommendation.task.title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        for (final reason
+                                            in recommendation.reasons.take(3))
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 4,
+                                            ),
+                                            child: Text('• ${reason.message}'),
+                                          ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          '今日已规划 '
+                                          '${state.todayPlan.blocks.length} '
+                                          '个时间块',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          );
+
                     final taskList = _Surface(
                       title: '任务列表',
                       child: state.snapshots.isEmpty
@@ -136,11 +185,15 @@ class _DashboardPageState extends State<DashboardPage> {
                                 final snapshot = state.snapshots[index];
                                 return ListTile(
                                   dense: true,
+                                  selected:
+                                      snapshot.task.id == _selectedTaskId,
                                   title: Text(snapshot.task.title),
                                   subtitle: Text(
                                     '重要性 ${snapshot.task.importance} · '
                                     '紧急性 ${snapshot.currentUrgency}',
                                   ),
+                                  onTap: () =>
+                                      _selectTask(snapshot.task.id),
                                 );
                               },
                             ),
@@ -149,9 +202,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     if (constraints.maxWidth < 980) {
                       return ListView(
                         children: [
-                          SizedBox(height: 260, child: quadrant),
+                          SizedBox(height: 300, child: quadrant),
                           const SizedBox(height: 16),
-                          SizedBox(height: 190, child: focus),
+                          SizedBox(height: 270, child: focus),
                           const SizedBox(height: 16),
                           SizedBox(height: 240, child: taskList),
                         ],
