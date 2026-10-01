@@ -11,6 +11,7 @@ import '../../../domain/settings/app_preferences.dart';
 import '../../../domain/tasks/task.dart';
 import '../../../domain/urgency/urgency_engine.dart';
 import '../../settings/data/preferences_repository.dart';
+import '../quadrant/quadrant_models.dart';
 import '../../tasks/data/task_repository.dart';
 
 class DashboardState {
@@ -90,6 +91,17 @@ class DashboardController extends ChangeNotifier {
       _preferences = value;
       _rebuild();
     });
+  }
+
+  Future<void> updateThresholds(QuadrantThresholds thresholds) async {
+    final next = thresholds.clamped();
+    await preferences.save(
+      AppPreferences(
+        nickname: _preferences.nickname,
+        importanceThreshold: next.importance,
+        urgencyThreshold: next.urgency,
+      ),
+    );
   }
 
   void _rebuild() {
