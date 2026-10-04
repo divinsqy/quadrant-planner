@@ -87,6 +87,13 @@ void main() {
       expect(error.toString(), 'SyncFailure(network)');
     }
   });
+  test('macOS sessions use OS keychain without a provisioning-only sharing capability', () {
+    const store = OsSecureSessionStore();
+    expect(
+      store.storage.mOptions.toMap()['usesDataProtectionKeychain'],
+      'false',
+    );
+  });
   test(
     'secure session storage alone receives token values and can clear them',
     () async {

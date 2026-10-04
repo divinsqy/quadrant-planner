@@ -23,10 +23,16 @@ Drift/SQLite `quadrant_v1.sqlite` 是事实来源。普通编辑先提交本地�
 Flutter **3.47.3**，Dart **>=3.13.0 <4.0.0**。在 `v1-rewrite` 开发，遵循根目录 `AGENTS.md` 与批准的 `docs/superpowers/` 文档。
 
 ```sh
-flutter pub get
+flutter create . --empty --platforms=windows,macos --project-name quadrant_planner --org com.divins
+flutter pub get --enforce-lockfile
 dart run build_runner build --delete-conflicting-outputs
 flutter test
 flutter analyze
+```
+
+首次生成 macOS runner 后，将 `DebugProfile.entitlements` 和 `Release.entitlements` 的 `com.apple.security.files.user-selected.read-write`、`com.apple.security.network.client` 设为 `true`，删除 `keychain-access-groups`。CI 使用相同配置；`--empty` 保留已有应用代码并避免重新生成计数器样例测试。
+
+```sh
 flutter run -d macos   # Windows 使用 -d windows
 ```
 
@@ -72,5 +78,7 @@ flutter run -d macos --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 GitHub Actions 的 `Build desktop installers` 工作流完成代码生成、分析、测试和桌面集成测试后，构建 Windows x64 EXE 及 macOS DMG。产物名称包含真实架构；仅 `lipo` 确认同时含 arm64 和 x86_64 时使用 `universal`。
 
 没有 Apple Developer ID 时使用可验证的 ad-hoc 签名，DMG 明确标记 **not-notarized**。首次打开可能被 Gatekeeper 提醒，可在核实来源后通过系统“隐私与安全性”允许打开。只有经过 Developer ID 签名并成功公证、staple/validate 后才标记 notarized。Windows 安装包未配置代码签名时可能有 SmartScreen 提醒。
+
+macOS 使用标准 OS Keychain 保存会话，不启用需要 provisioning profile 的跨 App Keychain Sharing；无 Developer ID 的构建也保留 OS 安全存储边界。
 
 本次构建结果、精确文件名、架构、摘要和限制以 [v1.0 发布验证](docs/releases/v1.0.0-verification.md) 为准；构建通过不等同于已在所有干净电脑人工验证。

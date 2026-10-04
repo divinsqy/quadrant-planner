@@ -43,7 +43,13 @@ abstract interface class SecureSessionStore {
 class OsSecureSessionStore implements SecureSessionStore {
   final FlutterSecureStorage storage;
   static const _key = 'quadrant.v1.session';
-  const OsSecureSessionStore({this.storage = const FlutterSecureStorage()});
+  // This app does not share credentials with other apps. The macOS standard
+  // Keychain works with ad-hoc signing without a provisioning profile.
+  const OsSecureSessionStore({
+    this.storage = const FlutterSecureStorage(
+      mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+    ),
+  });
   @override
   Future<AuthSession?> read() async {
     final text = await storage.read(key: _key);

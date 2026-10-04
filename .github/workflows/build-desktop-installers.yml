@@ -59,7 +59,7 @@ jobs:
       - name: Generate Windows runner and dependencies
         run: |
           flutter config --enable-windows-desktop
-          flutter create . --platforms=windows --project-name quadrant_planner --org com.divins
+          flutter create . --empty --platforms=windows --project-name quadrant_planner --org com.divins
           flutter pub get --enforce-lockfile
           dart run build_runner build --delete-conflicting-outputs
       - name: Desktop end-to-end journeys
@@ -123,7 +123,7 @@ jobs:
       - name: Generate macOS runner and dependencies
         run: |
           flutter config --enable-macos-desktop
-          flutter create . --platforms=macos --project-name quadrant_planner --org com.divins
+          flutter create . --empty --platforms=macos --project-name quadrant_planner --org com.divins
           python3 - <<'PY'
           import plistlib,pathlib
           for name in ('DebugProfile','Release'):
@@ -131,13 +131,32 @@ jobs:
               data=plistlib.loads(path.read_bytes())
               data['com.apple.security.files.user-selected.read-write']=True
               data['com.apple.security.network.client']=True
-              data['keychain-access-groups']=[]
+              data.pop('keychain-access-groups',None)
               path.write_bytes(plistlib.dumps(data))
           PY
           flutter pub get --enforce-lockfile
           dart run build_runner build --delete-conflicting-outputs
       - name: Desktop end-to-end journeys
         run: flutter test integration_test/v1_journeys_test.dart -d macos -r expanded
+      - name: macOS startup diagnostics
+        if: failure()
+        run: |
+          APP="$(find build/macos/Build/Products/Debug -maxdepth 1 -name '*.app' -print -quit)"
+          if [[ -d "$APP" ]]; then
+            codesign --verify --deep --strict "$APP" || true
+            codesign --display --entitlements - "$APP" || true
+            python3 - "$APP/Contents/MacOS/quadrant_planner" <<'PY'
+          import subprocess,sys
+          app=subprocess.Popen([sys.argv[1]],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+          try:
+              output=app.communicate(timeout=12)[0]
+          except subprocess.TimeoutExpired:
+              app.terminate()
+              output=app.communicate(timeout=5)[0]
+          print('Diagnostic launch return code:',app.returncode)
+          print(output)
+          PY
+          fi
       - name: Build macOS release
         run: flutter build macos --release
       - name: Package and verify DMG
