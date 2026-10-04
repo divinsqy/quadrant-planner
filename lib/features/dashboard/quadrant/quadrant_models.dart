@@ -4,20 +4,13 @@ import '../../../domain/planning/planner_candidate.dart';
 import '../../../domain/tasks/task_status.dart';
 import '../../../domain/tasks/workload.dart';
 
-enum QuadrantPointWorkload {
-  small,
-  medium,
-  large,
-}
+enum QuadrantPointWorkload { small, medium, large }
 
 class QuadrantThresholds {
   final int urgency;
   final int importance;
 
-  const QuadrantThresholds({
-    required this.urgency,
-    required this.importance,
-  });
+  const QuadrantThresholds({required this.urgency, required this.importance});
 
   QuadrantThresholds clamped() {
     return QuadrantThresholds(
@@ -26,10 +19,7 @@ class QuadrantThresholds {
     );
   }
 
-  QuadrantThresholds copyWith({
-    int? urgency,
-    int? importance,
-  }) {
+  QuadrantThresholds copyWith({int? urgency, int? importance}) {
     return QuadrantThresholds(
       urgency: urgency ?? this.urgency,
       importance: importance ?? this.importance,
@@ -55,8 +45,12 @@ class QuadrantTaskPoint {
   final int urgency;
   final int importance;
   final QuadrantPointWorkload workload;
+  final TaskStatus status;
   final String statusLabel;
   final Map<String, String> metadata;
+
+  String get semanticsLabel =>
+      '$title，紧急性 $urgency，重要性 $importance，$statusLabel';
 
   const QuadrantTaskPoint({
     required this.id,
@@ -66,11 +60,15 @@ class QuadrantTaskPoint {
     required this.urgency,
     required this.importance,
     required this.workload,
+    this.status = TaskStatus.planned,
     required this.statusLabel,
     required this.metadata,
   });
 
-  factory QuadrantTaskPoint.fromSnapshot(TaskPlanningSnapshot snapshot) {
+  factory QuadrantTaskPoint.fromSnapshot(
+    TaskPlanningSnapshot snapshot, {
+    Map<String, String> extraMetadata = const {},
+  }) {
     final task = snapshot.task;
     return QuadrantTaskPoint(
       id: task.id,
@@ -85,11 +83,12 @@ class QuadrantTaskPoint {
         Workload.large => QuadrantPointWorkload.large,
       },
       statusLabel: _statusLabel(task.status),
+      status: task.status,
       metadata: {
         if (task.deadline != null) '截止': _dateLabel(task.deadline!.toLocal()),
-        if (task.estimatedMinutes != null)
-          '预计': '${task.estimatedMinutes} min',
+        if (task.estimatedMinutes != null) '预计': '${task.estimatedMinutes} min',
         '状态': _statusLabel(task.status),
+        ...extraMetadata,
       },
     );
   }
@@ -116,10 +115,7 @@ class QuadrantCluster {
   final List<QuadrantTaskPoint> members;
   final Offset screenCenter;
 
-  const QuadrantCluster({
-    required this.members,
-    required this.screenCenter,
-  });
+  const QuadrantCluster({required this.members, required this.screenCenter});
 
   bool get isCluster => members.length > 1;
 }

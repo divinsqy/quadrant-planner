@@ -8,10 +8,25 @@ class TagRepository {
 
   TagRepository(this._db);
 
-  Future<List<domain.Tag>> search(
-    String query, {
-    int limit = 20,
-  }) async {
+  Stream<Map<String, List<String>>> watchTaskTags() {
+    final query = _db.select(_db.taskTags).join([
+      innerJoin(_db.tags, _db.tags.id.equalsExp(_db.taskTags.tagId)),
+    ])..where(_db.tags.archivedAt.isNull());
+    query.orderBy([OrderingTerm.asc(_db.tags.name)]);
+    return query.watch().map((rows) {
+      final result = <String, List<String>>{};
+      for (final row in rows) {
+        final link = row.readTable(_db.taskTags);
+        (result[link.taskId] ??= []).add(row.readTable(_db.tags).name);
+      }
+      return Map.unmodifiable({
+        for (final entry in result.entries)
+          entry.key: List<String>.unmodifiable(entry.value),
+      });
+    });
+  }
+
+  Future<List<domain.Tag>> search(String query, {int limit = 20}) async {
     final normalized = query.trim();
     if (normalized.isEmpty) {
       return const [];
@@ -19,11 +34,7 @@ class TagRepository {
 
     final pattern = '%$normalized%';
     final statement = _db.select(_db.tags)
-      ..where(
-        (row) =>
-            row.archivedAt.isNull() &
-            row.name.like(pattern),
-      )
+      ..where((row) => row.archivedAt.isNull() & row.name.like(pattern))
       ..orderBy([(row) => OrderingTerm.asc(row.name)])
       ..limit(limit);
 

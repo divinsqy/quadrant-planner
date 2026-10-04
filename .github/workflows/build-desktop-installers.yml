@@ -2,116 +2,145 @@ name: Build desktop installers
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, v1-rewrite]
+    paths-ignore: ['docs/releases/**']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-main
+  group: desktop-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FLUTTER_VERSION: '3.47.3'
+
 jobs:
-  windows:
-    name: Windows x64 EXE
-    runs-on: windows-2025
-    timeout-minutes: 45
+  verify:
+    name: Generate, analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.3'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter analyze
+      - run: flutter test -r expanded
+      - run: python3 test/packaging/macos_package_test.py
+      - name: Upload test and generation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-logs
+          path: .dart_tool/build/performance_log.json
+          if-no-files-found: ignore
 
-      - name: Generate Windows runner and dependencies
+  windows:
+    name: Windows x64 EXE
+    needs: verify
+    runs-on: windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
         shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Generate Windows runner and dependencies
         run: |
           flutter config --enable-windows-desktop
           flutter create . --platforms=windows --project-name quadrant_planner --org com.divins
-          flutter pub get
-
-      - name: Analyze
-        shell: pwsh
-        run: flutter analyze
-
-      - name: Test
-        shell: pwsh
-        run: flutter test
-
+          flutter pub get --enforce-lockfile
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Desktop end-to-end journeys
+        run: flutter test integration_test/v1_journeys_test.dart -d windows -r expanded
       - name: Build Windows release
-        shell: pwsh
-        run: flutter build windows --release --build-name 0.8.0 --build-number 8
-
-      - name: Bundle Visual C++ runtime
-        shell: pwsh
+        run: flutter build windows --release
+      - name: Bundle and verify runtime
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Redist.14.Latest -property installationPath
-          if (-not $vs) { throw "Visual Studio VC++ redistributable not found" }
-
-          $runtime = Get-ChildItem "$vs\VC\Redist\MSVC" -Recurse -File -Filter "vcruntime140.dll" |
-            Where-Object { $_.FullName -like "*\x64\Microsoft.VC*.CRT\vcruntime140.dll" } |
-            Select-Object -First 1
-
-          if (-not $runtime) { throw "App-local Visual C++ x64 runtime not found under $vs" }
-
-          $crt = $runtime.Directory.FullName
-          $release = "build\windows\x64\runner\Release"
-          Write-Host "Bundling VC runtime from $crt"
-          Copy-Item (Join-Path $crt "*.dll") $release -Force
-
+          if (-not $vs) { throw 'Visual Studio VC++ redistributable not found' }
+          $runtime = Get-ChildItem "$vs\VC\Redist\MSVC" -Recurse -File -Filter vcruntime140.dll |
+            Where-Object { $_.FullName -like '*\x64\Microsoft.VC*.CRT\vcruntime140.dll' } | Select-Object -First 1
+          if (-not $runtime) { throw 'App-local x64 runtime not found' }
+          $release = 'build\windows\x64\runner\Release'
+          Copy-Item (Join-Path $runtime.Directory.FullName '*.dll') $release -Force
+          foreach ($name in @('quadrant_planner.exe','flutter_windows.dll','vcruntime140.dll','vcruntime140_1.dll','msvcp140.dll','data\icudtl.dat','data\flutter_assets')) {
+            if (-not (Test-Path (Join-Path $release $name))) { throw "Missing runtime: $name" }
+          }
+          $pe = [IO.File]::ReadAllBytes((Join-Path $release 'quadrant_planner.exe'))
+          $offset = [BitConverter]::ToInt32($pe, 0x3c)
+          if ([BitConverter]::ToUInt16($pe, $offset + 4) -ne 0x8664) { throw 'Runner is not x64' }
       - name: Install Inno Setup
-        shell: pwsh
         run: choco install innosetup -y --no-progress
-
       - name: Build installer
-        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\windows\quadrant_planner.iss
-
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' installer\windows\quadrant_planner.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
+      - name: Installer smoke test and metadata
+        run: |
+          $installer = (Get-ChildItem dist\windows\*.exe).FullName
+          $installDir = Join-Path $env:RUNNER_TEMP 'quadrant-installed'
+          $setup = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SP-','/SUPPRESSMSGBOXES',"/DIR=`"$installDir`"") -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer failed: $($setup.ExitCode)" }
+          $app = Start-Process -FilePath (Join-Path $installDir 'quadrant_planner.exe') -PassThru
+          Start-Sleep -Seconds 8
+          if ($app.HasExited) { throw "Installed app exited: $($app.ExitCode)" }
+          Stop-Process -Id $app.Id
+          @{filename=(Split-Path $installer -Leaf);version='1.0.0+9';architecture='x64';signing='unsigned';sha256=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()} |
+            ConvertTo-Json | Set-Content dist\windows\metadata.json -Encoding utf8
+          Get-Content dist\windows\metadata.json
+      - uses: actions/upload-artifact@v4
         with:
           name: QuadrantPlanner-Windows-x64
-          path: dist/windows/*.exe
+          path: dist/windows/*
           if-no-files-found: error
 
   macos:
     name: macOS DMG
+    needs: verify
     runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.3'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
       - name: Generate macOS runner and dependencies
         run: |
           flutter config --enable-macos-desktop
           flutter create . --platforms=macos --project-name quadrant_planner --org com.divins
-          flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
-
+          python3 - <<'PY'
+          import plistlib,pathlib
+          for name in ('DebugProfile','Release'):
+              path=pathlib.Path(f'macos/Runner/{name}.entitlements')
+              data=plistlib.loads(path.read_bytes())
+              data['com.apple.security.files.user-selected.read-write']=True
+              data['com.apple.security.network.client']=True
+              data['keychain-access-groups']=[]
+              path.write_bytes(plistlib.dumps(data))
+          PY
+          flutter pub get --enforce-lockfile
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Desktop end-to-end journeys
+        run: flutter test integration_test/v1_journeys_test.dart -d macos -r expanded
       - name: Build macOS release
-        run: flutter build macos --release --build-name 0.8.0 --build-number 8
-
-      - name: Package DMG
+        run: flutter build macos --release
+      - name: Package and verify DMG
         env:
           APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
@@ -119,10 +148,24 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: bash scripts/build_macos_dmg.sh
-
-      - name: Upload macOS DMG
-        uses: actions/upload-artifact@v4
+      - name: Mounted DMG smoke test
+        run: |
+          MOUNT="$RUNNER_TEMP/quadrant-mount"
+          mkdir -p "$MOUNT"
+          DMG="$(find dist/macos -name '*.dmg' -print -quit)"
+          hdiutil attach "$DMG" -readonly -nobrowse -mountpoint "$MOUNT"
+          trap 'hdiutil detach "$MOUNT"' EXIT
+          APP="$(find "$MOUNT" -maxdepth 1 -name '*.app' -print -quit)"
+          test -d "$APP"
+          codesign --verify --deep --strict "$APP"
+          "$APP/Contents/MacOS/quadrant_planner" > "$RUNNER_TEMP/app-smoke.log" 2>&1 &
+          APP_PID=$!
+          sleep 8
+          kill -0 "$APP_PID"
+          kill "$APP_PID"
+          wait "$APP_PID" || true
+      - uses: actions/upload-artifact@v4
         with:
           name: QuadrantPlanner-macOS
-          path: dist/macos/*.dmg
+          path: dist/macos/*
           if-no-files-found: error

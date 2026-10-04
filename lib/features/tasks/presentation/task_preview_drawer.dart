@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../domain/tasks/task.dart';
 import '../../../domain/tasks/task_status.dart';
 import '../application/task_editor_controller.dart';
+import '../../projects/data/project_repository.dart';
+import 'task_editor.dart';
 
 class TaskPreviewDrawer extends StatefulWidget {
   final Task task;
@@ -10,6 +13,7 @@ class TaskPreviewDrawer extends StatefulWidget {
   final VoidCallback? onClose;
   final VoidCallback? onOpenDetail;
   final ValueChanged<Task>? onTaskChanged;
+  final ProjectRepository? projects;
 
   const TaskPreviewDrawer({
     super.key,
@@ -18,6 +22,7 @@ class TaskPreviewDrawer extends StatefulWidget {
     this.onClose,
     this.onOpenDetail,
     this.onTaskChanged,
+    this.projects,
   });
 
   @override
@@ -47,15 +52,47 @@ class _TaskPreviewDrawerState extends State<TaskPreviewDrawer> {
       if (!mounted) return;
       setState(() => _task = saved);
       widget.onTaskChanged?.call(saved);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text('保存失败：$error')));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  Future<void> _edit() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 680),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: TaskEditor(
+              task: _task,
+              controller: widget.controller,
+              projects: widget.projects,
+              compact: true,
+              onSaved: (saved) {
+                if (mounted) {
+                  setState(() => _task = saved);
+                  widget.onTaskChanged?.call(saved);
+                }
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
+    final drawer = Material(
       color: scheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -95,9 +132,17 @@ class _TaskPreviewDrawerState extends State<TaskPreviewDrawer> {
                   ? '未设置'
                   : '${_task.estimatedMinutes} min',
             ),
+            _Metric(label: '完成进度', value: '${_task.progress}%'),
             _Metric(
-              label: '完成进度',
-              value: '${_task.progress}%',
+              label: '截止日期',
+              value: _task.deadline == null
+                  ? '未设置'
+                  : _task.deadline!.toLocal().toString().split(' ').first,
+            ),
+            TextButton.icon(
+              onPressed: _busy ? null : _edit,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('轻量编辑'),
             ),
             const SizedBox(height: 20),
             Wrap(
@@ -114,8 +159,9 @@ class _TaskPreviewDrawerState extends State<TaskPreviewDrawer> {
                 if (_task.status != TaskStatus.waiting &&
                     _task.status != TaskStatus.completed)
                   OutlinedButton(
-                    onPressed:
-                        _busy ? null : () => _changeStatus(TaskStatus.waiting),
+                    onPressed: _busy
+                        ? null
+                        : () => _changeStatus(TaskStatus.waiting),
                     child: const Text('等待'),
                   ),
                 if (_task.status != TaskStatus.completed)
@@ -139,6 +185,13 @@ class _TaskPreviewDrawerState extends State<TaskPreviewDrawer> {
         ),
       ),
     );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            widget.onClose?.call(),
+      },
+      child: Focus(autofocus: true, child: drawer),
+    );
   }
 
   String _statusLabel(TaskStatus status) {
@@ -157,10 +210,7 @@ class _Metric extends StatelessWidget {
   final String label;
   final String value;
 
-  const _Metric({
-    required this.label,
-    required this.value,
-  });
+  const _Metric({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

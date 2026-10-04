@@ -44,57 +44,49 @@ void main() {
   });
 
   test('Inbox task can be planned and records the status change', () async {
-    final inbox = await tasks.createTask(
-      const TaskDraft(title: 'Learn UVM'),
-    );
+    final inbox = await tasks.createTask(const TaskDraft(title: 'Learn UVM'));
     expect(inbox.status, TaskStatus.inbox);
 
     now = DateTime.utc(2026, 10, 1, 10);
-    final planned = await controller.save(
-      inbox,
-      status: TaskStatus.planned,
-    );
+    final planned = await controller.save(inbox, status: TaskStatus.planned);
 
     expect(planned.status, TaskStatus.planned);
     expect((await tasks.get(planned.id))!.status, TaskStatus.planned);
 
     final events = await activity.fetchPage(planned.id, limit: 20);
-    expect(events, hasLength(1));
-    expect(events.single.type, 'task_updated');
-    expect(events.single.payload['changes']['status']['before'], 'inbox');
-    expect(events.single.payload['changes']['status']['after'], 'planned');
+    expect(events, hasLength(2));
+    final update = events.singleWhere((event) => event.type == 'task_updated');
+    expect(update.payload['changes']['status']['before'], 'inbox');
+    expect(update.payload['changes']['status']['after'], 'planned');
   });
 
-  test('changing importance keeps urgency anchor, changing base urgency resets it', () async {
-    final task = await tasks.createTask(
-      const TaskDraft(
-        title: 'AXI write path',
-        status: TaskStatus.planned,
-        importance: 60,
-        baseUrgency: 40,
-      ),
-    );
-    final originalAnchor = task.baseUrgencyAnchorAt;
+  test(
+    'changing importance keeps urgency anchor, changing base urgency resets it',
+    () async {
+      final task = await tasks.createTask(
+        const TaskDraft(
+          title: 'AXI write path',
+          status: TaskStatus.planned,
+          importance: 60,
+          baseUrgency: 40,
+        ),
+      );
+      final originalAnchor = task.baseUrgencyAnchorAt;
 
-    now = DateTime.utc(2026, 10, 1, 11);
-    final importanceOnly = await controller.save(
-      task,
-      importance: 80,
-    );
-    expect(importanceOnly.importance, 80);
-    expect(importanceOnly.baseUrgencyAnchorAt, originalAnchor);
+      now = DateTime.utc(2026, 10, 1, 11);
+      final importanceOnly = await controller.save(task, importance: 80);
+      expect(importanceOnly.importance, 80);
+      expect(importanceOnly.baseUrgencyAnchorAt, originalAnchor);
 
-    now = DateTime.utc(2026, 10, 1, 14);
-    final urgencyChanged = await controller.save(
-      importanceOnly,
-      baseUrgency: 75,
-    );
-    expect(urgencyChanged.baseUrgency, 75);
-    expect(
-      urgencyChanged.baseUrgencyAnchorAt,
-      DateTime.utc(2026, 10, 1, 14),
-    );
-  });
+      now = DateTime.utc(2026, 10, 1, 14);
+      final urgencyChanged = await controller.save(
+        importanceOnly,
+        baseUrgency: 75,
+      );
+      expect(urgencyChanged.baseUrgency, 75);
+      expect(urgencyChanged.baseUrgencyAnchorAt, DateTime.utc(2026, 10, 1, 14));
+    },
+  );
 
   test('deadline can be set without resetting urgency anchor', () async {
     final task = await tasks.createTask(
@@ -118,10 +110,7 @@ void main() {
 
   test('waiting task disappears from executable stream', () async {
     final task = await tasks.createTask(
-      const TaskDraft(
-        title: 'Blocked review',
-        status: TaskStatus.planned,
-      ),
+      const TaskDraft(title: 'Blocked review', status: TaskStatus.planned),
     );
     expect(
       (await tasks.watchExecutableTasks().first).map((item) => item.id),
@@ -137,55 +126,80 @@ void main() {
     );
   });
 
-  test('complete sets 100 percent, completion time, and activity event', () async {
-    final task = await tasks.createTask(
-      const TaskDraft(
-        title: '4K boundary RTL',
-        status: TaskStatus.inProgress,
-        progress: 45,
-      ),
-    );
+  test(
+    'complete sets 100 percent, completion time, and activity event',
+    () async {
+      final task = await tasks.createTask(
+        const TaskDraft(
+          title: '4K boundary RTL',
+          status: TaskStatus.inProgress,
+          progress: 45,
+        ),
+      );
 
-    now = DateTime.utc(2026, 10, 1, 17, 30);
-    final completed = await controller.complete(task);
+      now = DateTime.utc(2026, 10, 1, 17, 30);
+      final completed = await controller.complete(task);
 
-    expect(completed.status, TaskStatus.completed);
-    expect(completed.progress, 100);
-    expect(completed.completedAt, now);
+      expect(completed.status, TaskStatus.completed);
+      expect(completed.progress, 100);
+      expect(completed.completedAt, now);
 
-    final events = await activity.fetchPage(task.id, limit: 20);
-    expect(events.single.type, 'completed');
-    expect(events.single.occurredAt, now);
-  });
+      final events = await activity.fetchPage(task.id, limit: 20);
+      final completedEvent = events.singleWhere(
+        (event) => event.type == 'completed',
+      );
+      expect(completedEvent.occurredAt, now);
+    },
+  );
 
-  test('activity pagination returns newest events without loading everything', () async {
-    final task = await tasks.createTask(
-      const TaskDraft(
-        title: 'Activity task',
-        status: TaskStatus.planned,
-      ),
-    );
+  test(
+    'activity pagination returns newest events without loading everything',
+    () async {
+      final task = await tasks.createTask(
+        const TaskDraft(title: 'Activity task', status: TaskStatus.planned),
+      );
 
-    for (var i = 0; i < 5; i += 1) {
-      now = DateTime.utc(2026, 10, 1, 9 + i);
-      await controller.save(task, importance: 51 + i);
-    }
+      for (var i = 0; i < 5; i += 1) {
+        now = DateTime.utc(2026, 10, 1, 9 + i);
+        await controller.save(task, importance: 51 + i);
+      }
 
-    final first = await activity.fetchPage(task.id, limit: 2);
-    expect(first, hasLength(2));
-    expect(first[0].occurredAt.isAfter(first[1].occurredAt), isTrue);
+      final first = await activity.fetchPage(task.id, limit: 2);
+      expect(first, hasLength(2));
+      expect(first[0].occurredAt.isAfter(first[1].occurredAt), isTrue);
 
-    final second = await activity.fetchPage(
-      task.id,
-      limit: 2,
-      before: first.last.occurredAt,
-    );
-    expect(second, hasLength(2));
-    expect(
-      second.every((event) => event.occurredAt.isBefore(first.last.occurredAt)),
-      isTrue,
-    );
-  });
+      final second = await activity.fetchPage(
+        task.id,
+        limit: 2,
+        before: first.last.occurredAt,
+      );
+      expect(second, hasLength(2));
+      expect(
+        second.every(
+          (event) => event.occurredAt.isBefore(first.last.occurredAt),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'activity page cursor retains events sharing the same timestamp',
+    () async {
+      final task = await tasks.createTask(const TaskDraft(title: 'Same time'));
+      for (var i = 0; i < 5; i++) {
+        await controller.save(task, importance: 60 + i);
+      }
+      final first = await activity.fetchPage(task.id, limit: 2);
+      final second = await activity.fetchPage(
+        task.id,
+        limit: 2,
+        before: first.last.occurredAt,
+        beforeId: first.last.id,
+      );
+      expect(second, hasLength(2));
+    },
+  );
 
   testWidgets('task preview can complete a task', (tester) async {
     final task = await tasks.createTask(
@@ -199,10 +213,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: TaskPreviewDrawer(
-            task: task,
-            controller: controller,
-          ),
+          body: TaskPreviewDrawer(task: task, controller: controller),
         ),
       ),
     );
@@ -222,10 +233,7 @@ void main() {
 
   testWidgets('task detail exposes four lifecycle tabs', (tester) async {
     final task = await tasks.createTask(
-      const TaskDraft(
-        title: 'Detail Task',
-        status: TaskStatus.planned,
-      ),
+      const TaskDraft(title: 'Detail Task', status: TaskStatus.planned),
     );
 
     await tester.pumpWidget(
@@ -250,23 +258,15 @@ void main() {
   });
 
   testWidgets('Inbox shows only inbox tasks and can plan one', (tester) async {
-    final inbox = await tasks.createTask(
-      const TaskDraft(title: 'Inbox Task'),
-    );
+    final inbox = await tasks.createTask(const TaskDraft(title: 'Inbox Task'));
     await tasks.createTask(
-      const TaskDraft(
-        title: 'Planned Task',
-        status: TaskStatus.planned,
-      ),
+      const TaskDraft(title: 'Planned Task', status: TaskStatus.planned),
     );
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: InboxPage(
-            tasks: tasks,
-            editor: controller,
-          ),
+          body: InboxPage(tasks: tasks, editor: controller),
         ),
       ),
     );
@@ -283,5 +283,4 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
-
 }

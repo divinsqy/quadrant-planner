@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../application/global_search_controller.dart';
+import '../../../app/router/app_router.dart';
 
 class CommandPalette extends StatefulWidget {
   final GlobalSearchController controller;
   final ValueChanged<GlobalSearchResult> onOpenResult;
+  final ValueChanged<String>? onNavigate;
 
   const CommandPalette({
     super.key,
     required this.controller,
     required this.onOpenResult,
+    this.onNavigate,
   });
 
   @override
@@ -59,6 +62,11 @@ class _CommandPaletteState extends State<CommandPalette> {
             TextField(
               autofocus: true,
               onChanged: controller.search,
+              onSubmitted: (_) {
+                if (controller.results.isNotEmpty) {
+                  widget.onOpenResult(controller.results.first);
+                }
+              },
               decoration: const InputDecoration(
                 hintText: '搜索任务、项目或标签',
                 prefixIcon: Icon(Icons.search_rounded),
@@ -78,6 +86,13 @@ class _CommandPaletteState extends State<CommandPalette> {
                 padding: EdgeInsets.all(16),
                 child: Text('输入关键词开始搜索'),
               ),
+            if (controller.results.isEmpty && widget.onNavigate != null)
+              for (final destination in appDestinations)
+                ListTile(
+                  leading: Icon(destination.icon),
+                  title: Text('前往${destination.label}'),
+                  onTap: () => widget.onNavigate!(destination.name),
+                ),
             for (final result in controller.results)
               ListTile(
                 leading: Icon(

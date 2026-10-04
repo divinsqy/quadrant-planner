@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 @DataClassName('TaskRow')
 class Tasks extends Table {
@@ -6,8 +7,16 @@ class Tasks extends Table {
   TextColumn get title => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
-  TextColumn get projectId =>
-      text().nullable().references(Projects, #id, onDelete: KeyAction.setNull)();
+  TextColumn get projectId => text().nullable().references(
+    Projects,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get milestoneId => text().nullable().references(
+    Milestones,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
   IntColumn get importance => integer()();
   IntColumn get baseUrgency => integer()();
   DateTimeColumn get baseUrgencyAnchorAt => dateTime()();
@@ -73,6 +82,22 @@ class Milestones extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+@DataClassName('MilestoneHistoryRow')
+class MilestoneHistory extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get syncId =>
+      text().nullable().clientDefault(() => const Uuid().v4())();
+  // Evidence survives changes to live project/milestone rows.
+  TextColumn get milestoneId => text()();
+  TextColumn get projectId => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get deadline => dateTime().nullable()();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get occurredAt => dateTime()();
+  BoolColumn get isLegacySeed => boolean().withDefault(const Constant(false))();
+}
+
 @DataClassName('DependencyRow')
 class Dependencies extends Table {
   TextColumn get id => text()();
@@ -91,8 +116,8 @@ class Dependencies extends Table {
 
   @override
   List<Set<Column<Object>>> get uniqueKeys => [
-        {taskId, dependsOnTaskId},
-      ];
+    {taskId, dependsOnTaskId},
+  ];
 }
 
 @DataClassName('TagRow')
@@ -136,6 +161,8 @@ class Preferences extends Table {
   IntColumn get importanceThreshold =>
       integer().withDefault(const Constant(50))();
   IntColumn get urgencyThreshold => integer().withDefault(const Constant(50))();
+  BoolColumn get workScheduleConfigured =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -173,6 +200,11 @@ class FocusSessions extends Table {
   DateTimeColumn get startedAt => dateTime()();
   DateTimeColumn get endedAt => dateTime().nullable()();
   TextColumn get intervalsJson => text().withDefault(const Constant('[]'))();
+  TextColumn get planBlockId => text().nullable().references(
+    DailyPlanBlocks,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -188,9 +220,21 @@ class DailyPlanBlocks extends Table {
   IntColumn get endMinutes => integer()();
   BoolColumn get isLocked => boolean().withDefault(const Constant(false))();
   TextColumn get source => text().withDefault(const Constant('suggested'))();
+  DateTimeColumn get completedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+@DataClassName('PlannerTaskOverrideRow')
+class PlannerTaskOverrides extends Table {
+  TextColumn get localDate => text()();
+  TextColumn get taskId =>
+      text().references(Tasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get action => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {localDate, taskId};
 }
 
 @DataClassName('WeeklyReportRow')

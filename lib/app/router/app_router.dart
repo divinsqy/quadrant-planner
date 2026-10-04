@@ -73,26 +73,55 @@ GoRouter createAppRouter({
   required Widget Function(
     BuildContext context,
     AppDestinationConfig destination,
-  ) pageBuilder,
+  )
+  pageBuilder,
+  Widget Function(BuildContext, StatefulNavigationShell)? shellBuilder,
+  Widget Function(BuildContext, String)? taskDetailBuilder,
+  Widget Function(BuildContext, String)? projectDetailBuilder,
+  Widget Function(BuildContext)? focusBuilder,
+  GlobalKey<NavigatorState>? navigatorKey,
 }) {
+  GoRoute destinationRoute(AppDestinationConfig destination) => GoRoute(
+    name: destination.name,
+    path: destination.path,
+    builder: (context, state) => pageBuilder(context, destination),
+  );
   return GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: appDestinations.first.path,
     routes: [
-      for (final destination in appDestinations)
+      if (focusBuilder != null)
         GoRoute(
-          name: destination.name,
-          path: destination.path,
-          builder: (context, state) => pageBuilder(context, destination),
+          name: 'focus',
+          path: '/focus',
+          builder: (context, state) => focusBuilder(context),
+        ),
+      if (shellBuilder == null)
+        for (final destination in appDestinations) destinationRoute(destination)
+      else
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, shell) => shellBuilder(context, shell),
+          branches: [
+            for (final destination in appDestinations)
+              StatefulShellBranch(routes: [destinationRoute(destination)]),
+          ],
         ),
       GoRoute(
         name: 'taskDetail',
         path: '/tasks/:taskId',
-        builder: (context, state) => const SizedBox.shrink(),
+        builder: (context, state) =>
+            taskDetailBuilder?.call(context, state.pathParameters['taskId']!) ??
+            const SizedBox.shrink(),
       ),
       GoRoute(
         name: 'projectDetail',
         path: '/projects/:projectId',
-        builder: (context, state) => const SizedBox.shrink(),
+        builder: (context, state) =>
+            projectDetailBuilder?.call(
+              context,
+              state.pathParameters['projectId']!,
+            ) ??
+            const SizedBox.shrink(),
       ),
     ],
   );

@@ -6,6 +6,7 @@ class Milestone {
   final DateTime? completedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool historicalSeed;
 
   const Milestone({
     required this.id,
@@ -15,5 +16,6 @@ class Milestone {
     required this.completedAt,
     required this.createdAt,
     required this.updatedAt,
+    this.historicalSeed = false,
   });
 }

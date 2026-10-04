@@ -23,16 +23,15 @@ class AppShell extends StatelessWidget {
     final bindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.keyK, control: true):
           onOpenSearch,
-      const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-          onOpenSearch,
+      const SingleActivator(LogicalKeyboardKey.keyK, meta: true): onOpenSearch,
     };
 
     for (var index = 0; index < appDestinations.length; index += 1) {
       final key = _digitKey(index + 1);
-      bindings[SingleActivator(key, control: true)] =
-          () => onDestinationSelected(index);
-      bindings[SingleActivator(key, meta: true)] =
-          () => onDestinationSelected(index);
+      bindings[SingleActivator(key, control: true)] = () =>
+          onDestinationSelected(index);
+      bindings[SingleActivator(key, meta: true)] = () =>
+          onDestinationSelected(index);
     }
 
     return CallbackShortcuts(
@@ -63,6 +62,7 @@ class AppShell extends StatelessWidget {
               body: Row(
                 children: [
                   NavigationRail(
+                    scrollable: true,
                     selectedIndex: selectedIndex,
                     onDestinationSelected: onDestinationSelected,
                     labelType: NavigationRailLabelType.all,

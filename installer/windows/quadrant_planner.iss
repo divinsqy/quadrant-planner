@@ -1,5 +1,5 @@
 #define MyAppName "象限计划"
-#define MyAppVersion "0.8.0"
+#define MyAppVersion "1.0.0"
 #define MyAppExeName "quadrant_planner.exe"
 
 [Setup]

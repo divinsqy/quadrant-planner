@@ -1,9 +1,10 @@
 name: v1 branch CI
 
 on:
-  push:
+  pull_request:
     branches:
       - v1-rewrite
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,10 +28,10 @@ jobs:
           cache: true
 
       - name: Get dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Generate code
-        run: dart run build_runner build
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Test
         run: flutter test -r expanded

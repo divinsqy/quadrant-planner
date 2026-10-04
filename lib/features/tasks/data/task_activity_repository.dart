@@ -10,10 +10,8 @@ class TaskActivityRepository {
   final AppDatabase _db;
   final String Function() _idFactory;
 
-  TaskActivityRepository(
-    this._db, {
-    String Function()? idFactory,
-  }) : _idFactory = idFactory ?? (() => const Uuid().v4());
+  TaskActivityRepository(this._db, {String Function()? idFactory})
+    : _idFactory = idFactory ?? (() => const Uuid().v4());
 
   Future<TaskActivityEvent> add({
     required String taskId,
@@ -29,7 +27,9 @@ class TaskActivityRepository {
       payload: Map.unmodifiable(payload),
     );
 
-    await _db.into(_db.activityEvents).insert(
+    await _db
+        .into(_db.activityEvents)
+        .insert(
           ActivityEventsCompanion(
             id: Value(event.id),
             taskId: Value(event.taskId),
@@ -45,6 +45,7 @@ class TaskActivityRepository {
     String taskId, {
     int limit = 50,
     DateTime? before,
+    String? beforeId,
   }) async {
     if (limit <= 0) {
       throw ArgumentError.value(limit, 'limit', 'must be positive');
@@ -54,7 +55,14 @@ class TaskActivityRepository {
       ..where((row) {
         var expression = row.taskId.equals(taskId);
         if (before != null) {
-          expression = expression & row.occurredAt.isSmallerThanValue(before.toUtc());
+          final older = row.occurredAt.isSmallerThanValue(before.toUtc());
+          expression =
+              expression &
+              (beforeId == null
+                  ? older
+                  : older |
+                        (row.occurredAt.equals(before.toUtc()) &
+                            row.id.isSmallerThanValue(beforeId)));
         }
         return expression;
       })
@@ -66,6 +74,25 @@ class TaskActivityRepository {
 
     final rows = await query.get();
     return rows.map(_fromRow).toList(growable: false);
+  }
+
+  Stream<List<TaskActivityEvent>> watchRecent(
+    String taskId, {
+    int limit = 200,
+  }) {
+    if (limit <= 0) {
+      throw ArgumentError.value(limit, 'limit', 'must be positive');
+    }
+    final query = _db.select(_db.activityEvents)
+      ..where((row) => row.taskId.equals(taskId))
+      ..orderBy([
+        (row) => OrderingTerm.desc(row.occurredAt),
+        (row) => OrderingTerm.desc(row.id),
+      ])
+      ..limit(limit);
+    return query.watch().map(
+      (rows) => rows.map(_fromRow).toList(growable: false),
+    );
   }
 
   TaskActivityEvent _fromRow(ActivityEventRow row) {

@@ -6,7 +6,8 @@ import '../../../domain/tasks/workload.dart';
 import '../data/task_activity_repository.dart';
 import '../data/task_repository.dart';
 
-const Object _unchanged = Object();
+const Object unchangedTaskField = Object();
+const Object _unchanged = unchangedTaskField;
 
 class TaskEditorController {
   final TaskRepository tasks;
@@ -24,6 +25,8 @@ class TaskEditorController {
     String? title,
     String? description,
     TaskStatus? status,
+    Object? projectId = _unchanged,
+    Object? milestoneId = _unchanged,
     int? importance,
     int? baseUrgency,
     Object? deadline = _unchanged,
@@ -37,6 +40,8 @@ class TaskEditorController {
       title: title,
       description: description,
       status: status,
+      projectId: projectId,
+      milestoneId: milestoneId,
       importance: importance,
       baseUrgency: baseUrgency,
       deadline: deadline,
@@ -62,6 +67,8 @@ class TaskEditorController {
     String? title,
     String? description,
     TaskStatus? status,
+    Object? projectId = _unchanged,
+    Object? milestoneId = _unchanged,
     int? importance,
     int? baseUrgency,
     Object? deadline = _unchanged,
@@ -70,7 +77,7 @@ class TaskEditorController {
     int? progress,
     bool? includeInWeeklyReport,
     required String eventType,
-  }) async {
+  }) => tasks.transaction(() async {
     final current = await tasks.get(task.id) ?? task;
     final now = _clock().toUtc();
     final nextStatus = status ?? current.status;
@@ -86,20 +93,29 @@ class TaskEditorController {
 
     final completedAt = nextStatus == TaskStatus.completed
         ? (current.completedAt ?? now)
-        : current.completedAt;
+        : null;
+    final nextProjectId = identical(projectId, _unchanged)
+        ? current.projectId
+        : projectId as String?;
+    final nextMilestoneId = identical(milestoneId, _unchanged)
+        ? (nextProjectId == current.projectId ? current.milestoneId : null)
+        : milestoneId as String?;
 
     final next = current.copyWith(
       title: title,
       description: description,
       status: nextStatus,
+      projectId: nextProjectId,
+      milestoneId: nextMilestoneId,
       importance: importance,
       baseUrgency: nextBaseUrgency,
-      baseUrgencyAnchorAt:
-          baseUrgencyChanged ? now : current.baseUrgencyAnchorAt,
+      baseUrgencyAnchorAt: baseUrgencyChanged
+          ? now
+          : current.baseUrgencyAnchorAt,
       deadline: nextDeadline,
       estimatedMinutes: nextEstimate,
       workload: workload,
-      progress: progress,
+      progress: nextStatus == TaskStatus.completed ? 100 : progress,
       includeInWeeklyReport: includeInWeeklyReport,
       updatedAt: now,
       completedAt: completedAt,
@@ -118,7 +134,7 @@ class TaskEditorController {
       payload: {'changes': changes},
     );
     return next;
-  }
+  });
 
   Map<String, dynamic> _changes(Task before, Task after) {
     final changes = <String, dynamic>{};
@@ -129,15 +145,14 @@ class TaskEditorController {
       if (jsonEncode(oldEncoded) == jsonEncode(newEncoded)) {
         return;
       }
-      changes[key] = {
-        'before': oldEncoded,
-        'after': newEncoded,
-      };
+      changes[key] = {'before': oldEncoded, 'after': newEncoded};
     }
 
     add('title', before.title, after.title);
     add('description', before.description, after.description);
     add('status', before.status, after.status);
+    add('projectId', before.projectId, after.projectId);
+    add('milestoneId', before.milestoneId, after.milestoneId);
     add('importance', before.importance, after.importance);
     add('baseUrgency', before.baseUrgency, after.baseUrgency);
     add(

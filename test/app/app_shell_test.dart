@@ -6,25 +6,51 @@ import 'package:quadrant_planner/app/shell/app_shell.dart';
 import 'package:quadrant_planner/app/theme/app_theme.dart';
 
 void main() {
-  test('app destinations define Dashboard as default and expose seven sections', () {
-    expect(appDestinations, hasLength(7));
-    expect(appDestinations.first.path, '/dashboard');
-    expect(appDestinations.map((item) => item.label), [
-      'Dashboard',
-      '收集箱',
-      '任务',
-      '项目',
-      '规划',
-      '周报',
-      '设置',
-    ]);
+  testWidgets(
+    'rail remains scrollable in a short desktop window with large text',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(960, 480));
+      tester.platformDispatcher.textScaleFactorTestValue = 1.8;
+      addTearDown(() {
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+        return tester.binding.setSurfaceSize(null);
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AppShell(
+            selectedIndex: 0,
+            onDestinationSelected: (_) {},
+            onOpenSearch: () {},
+            child: const Text('Body'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+  test(
+    'app destinations define Dashboard as default and expose seven sections',
+    () {
+      expect(appDestinations, hasLength(7));
+      expect(appDestinations.first.path, '/dashboard');
+      expect(appDestinations.map((item) => item.label), [
+        'Dashboard',
+        '收集箱',
+        '任务',
+        '项目',
+        '规划',
+        '周报',
+        '设置',
+      ]);
 
-    final router = createAppRouter(
-      pageBuilder: (context, destination) => Text(destination.label),
-    );
-    expect(router.routeInformationProvider.value.uri.path, '/dashboard');
-    router.dispose();
-  });
+      final router = createAppRouter(
+        pageBuilder: (context, destination) => Text(destination.label),
+      );
+      expect(router.routeInformationProvider.value.uri.path, '/dashboard');
+      router.dispose();
+    },
+  );
 
   test('light and dark themes expose the requested brightness', () {
     expect(AppTheme.light().brightness, Brightness.light);

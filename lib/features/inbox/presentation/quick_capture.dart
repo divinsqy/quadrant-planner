@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../domain/tasks/task_status.dart';
 import '../../tasks/data/task_repository.dart';
@@ -6,11 +7,13 @@ import '../../tasks/data/task_repository.dart';
 class QuickCapture extends StatefulWidget {
   final TaskRepository taskRepository;
   final VoidCallback? onCreated;
+  final bool autofocus;
 
   const QuickCapture({
     super.key,
     required this.taskRepository,
     this.onCreated,
+    this.autofocus = false,
   });
 
   @override
@@ -29,6 +32,7 @@ class _QuickCaptureState extends State<QuickCapture> {
   }
 
   Future<void> _submit() async {
+    if (_saving) return;
     final title = _controller.text.trim();
     if (title.isEmpty) {
       setState(() => _error = '请输入任务标题');
@@ -42,13 +46,12 @@ class _QuickCaptureState extends State<QuickCapture> {
 
     try {
       await widget.taskRepository.createTask(
-        TaskDraft(
-          title: title,
-          status: TaskStatus.inbox,
-        ),
+        TaskDraft(title: title, status: TaskStatus.inbox),
       );
       _controller.clear();
       widget.onCreated?.call();
+    } catch (error) {
+      if (mounted) setState(() => _error = '记录失败：$error');
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -58,12 +61,13 @@ class _QuickCaptureState extends State<QuickCapture> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final capture = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: TextField(
             controller: _controller,
+            autofocus: widget.autofocus,
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
               hintText: '快速记录一个待办...',
@@ -79,6 +83,13 @@ class _QuickCaptureState extends State<QuickCapture> {
           label: const Text('快速记录'),
         ),
       ],
+    );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.enter, control: true): _submit,
+        const SingleActivator(LogicalKeyboardKey.enter, meta: true): _submit,
+      },
+      child: Focus(child: capture),
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:quadrant_planner/features/settings/presentation/profile_settings
 import 'package:quadrant_planner/features/tasks/application/task_editor_controller.dart';
 import 'package:quadrant_planner/features/tasks/data/task_activity_repository.dart';
 import 'package:quadrant_planner/features/tasks/data/task_repository.dart';
+import 'package:quadrant_planner/features/tasks/presentation/task_preview_drawer.dart';
 
 void main() {
   late AppDatabase db;
@@ -66,10 +67,7 @@ void main() {
   testWidgets('Dashboard greeting reacts to nickname changes', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: DashboardPage(
-          controller: dashboard,
-          taskRepository: tasks,
-        ),
+        home: DashboardPage(controller: dashboard, taskRepository: tasks),
       ),
     );
     await tester.pumpAndSettle();
@@ -93,9 +91,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: QuickCapture(taskRepository: tasks),
-        ),
+        home: Scaffold(body: QuickCapture(taskRepository: tasks)),
       ),
     );
 
@@ -112,9 +108,7 @@ void main() {
   testWidgets('Quick Capture rejects a blank title', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: QuickCapture(taskRepository: tasks),
-        ),
+        home: Scaffold(body: QuickCapture(taskRepository: tasks)),
       ),
     );
 
@@ -131,10 +125,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: DashboardPage(
-          controller: dashboard,
-          taskRepository: tasks,
-        ),
+        home: DashboardPage(controller: dashboard, taskRepository: tasks),
       ),
     );
     await tester.pumpAndSettle();
@@ -161,12 +152,45 @@ void main() {
     );
   });
 
+  testWidgets('dragged thresholds persist without changing task coordinates', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final task = await tasks.createTask(
+      const TaskDraft(title: 'Fixed scores', status: TaskStatus.planned),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DashboardPage(controller: dashboard, taskRepository: tasks),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final board = find.byType(QuadrantBoard);
+    final rect = tester.getRect(board);
+    final threshold =
+        rect.topLeft +
+        Offset(36 + (rect.width - 64) / 2, 28 + (rect.height - 60) / 2);
+    await tester.dragFrom(threshold, const Offset(100, 0));
+    await tester.pumpAndSettle();
+    expect(dashboard.state.preferences.urgencyThreshold, greaterThan(50));
+    final stored = await tester.runAsync(() => preferences.watch().first);
+    expect(
+      stored!.urgencyThreshold,
+      dashboard.state.preferences.urgencyThreshold,
+    );
+    final after = await tasks.get(task.id);
+    expect(after!.importance, task.importance);
+    expect(after.baseUrgency, task.baseUrgency);
+    expect(after.baseUrgencyAnchorAt, task.baseUrgencyAnchorAt);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Profile Settings persists an edited nickname', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: ProfileSettings(preferences: preferences),
-        ),
+        home: Scaffold(body: ProfileSettings(preferences: preferences)),
       ),
     );
     await tester.pumpAndSettle();
@@ -175,9 +199,9 @@ void main() {
     await tester.tap(find.text('保存昵称'));
     await tester.pump();
 
-    final saved = await (db.select(db.preferences)
-          ..where((row) => row.id.equals('default')))
-        .getSingle();
+    final saved = await (db.select(
+      db.preferences,
+    )..where((row) => row.id.equals('default'))).getSingle();
     expect(saved.nickname, 'Divins');
     expect(find.text('已保存'), findsOneWidget);
 
@@ -187,48 +211,82 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('quadrant selection opens task preview and double click opens detail', (
-    tester,
-  ) async {
-    final task = await tasks.createTask(
-      const TaskDraft(
-        title: 'Centered Task',
-        status: TaskStatus.planned,
-        importance: 50,
-        baseUrgency: 50,
-        estimatedMinutes: 60,
-      ),
-    );
-    String? opened;
+  for (final size in [const Size(800, 600), const Size(1280, 900)]) {
+    testWidgets('${size.width == 800 ? '' : 'desktop '}'
+        'quadrant selection opens task preview and double click opens detail', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DashboardPage(
-          controller: dashboard,
-          taskRepository: tasks,
-          taskEditor: editor,
-          onOpenTask: (id) => opened = id,
+      final task = await tasks.createTask(
+        const TaskDraft(
+          title: 'Centered Task',
+          status: TaskStatus.planned,
+          importance: 50,
+          baseUrgency: 50,
+          estimatedMinutes: 60,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      String? opened;
 
-    final boardFinder = find.byType(QuadrantBoard);
-    expect(boardFinder, findsOneWidget);
-    final board = tester.widget<QuadrantBoard>(boardFinder);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DashboardPage(
+            controller: dashboard,
+            taskRepository: tasks,
+            taskEditor: editor,
+            onOpenTask: (id) => opened = id,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    board.onSelect!(task.id);
-    await tester.pump();
+      expect(
+        dashboard.state.snapshots.map((snapshot) => snapshot.task.id),
+        contains(task.id),
+      );
+      final boardFinder = find.byType(QuadrantBoard);
+      expect(boardFinder, findsOneWidget);
+      final board = tester.widget<QuadrantBoard>(boardFinder);
 
-    expect(find.text('标记完成'), findsOneWidget);
+      board.onSelect!(task.id);
+      await tester.pump();
 
-    board.onOpen!(task.id);
-    await tester.pump();
+      expect(tester.widget<QuadrantBoard>(boardFinder).selectedTaskId, task.id);
+      final previewFinder = find.byType(TaskPreviewDrawer);
+      expect(previewFinder, findsOneWidget);
+      expect(tester.widget<TaskPreviewDrawer>(previewFinder).task.id, task.id);
 
-    expect(opened, task.id);
+      // Compact layouts stack the preview below the quadrant. Reveal the
+      // panel, then scroll its lazy list to build and reach the status action.
+      await tester.ensureVisible(previewFinder);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('标记完成'),
+        80,
+        scrollable: find.descendant(
+          of: previewFinder,
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('标记完成'));
+      await tester.pumpAndSettle();
+      expect(find.text('标记完成').hitTestable(), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
-  });
+      board.onOpen!(task.id);
+      await tester.pump();
+      expect(opened, task.id);
 
+      await tester.tap(find.text('标记完成'));
+      await tester.pumpAndSettle();
+      expect((await tasks.get(task.id))!.status, TaskStatus.completed);
+      expect(dashboard.state.snapshots, isEmpty);
+      expect(find.byType(TaskPreviewDrawer), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    });
+  }
 }

@@ -2,11 +2,7 @@ import 'planned_block.dart';
 import 'planner_candidate.dart';
 import 'work_schedule.dart';
 
-enum UnscheduledReason {
-  noAvailableWindow,
-  noFittingWindow,
-  missingEstimate,
-}
+enum UnscheduledReason { noAvailableWindow, noFittingWindow, missingEstimate }
 
 class UnscheduledCandidate {
   final PlannerCandidate candidate;
@@ -24,10 +20,7 @@ class DayPlanSuggestion {
   final List<PlannedBlock> blocks;
   final List<UnscheduledCandidate> unscheduled;
 
-  const DayPlanSuggestion({
-    required this.blocks,
-    required this.unscheduled,
-  });
+  const DayPlanSuggestion({required this.blocks, required this.unscheduled});
 }
 
 class PlannerEngine {
@@ -38,6 +31,7 @@ class PlannerEngine {
     required WorkSchedule schedule,
     required List<PlannerCandidate> candidates,
     required List<PlannedBlock> lockedBlocks,
+    Map<String, int> alreadyAllocatedMinutes = const {},
   }) {
     final day = DateTime(date.year, date.month, date.day);
     final windows = _windowsForDate(schedule, day);
@@ -65,8 +59,8 @@ class PlannerEngine {
     var free = _subtractLocked(day, windows, lockedBlocks);
 
     for (final candidate in candidates) {
-      final estimate = candidate.task.estimatedMinutes;
-      if (estimate == null) {
+      final originalEstimate = candidate.task.estimatedMinutes;
+      if (originalEstimate == null) {
         unscheduled.add(
           UnscheduledCandidate(
             candidate: candidate,
@@ -76,8 +70,11 @@ class PlannerEngine {
         );
         continue;
       }
+      final estimate =
+          originalEstimate - (alreadyAllocatedMinutes[candidate.task.id] ?? 0);
+      if (estimate <= 0) continue;
 
-      if (estimate < 60) {
+      if (originalEstimate < 60) {
         final index = free.indexWhere(
           (slot) => slot.durationMinutes >= estimate,
         );
@@ -111,9 +108,7 @@ class PlannerEngine {
 
       var remaining = estimate;
       while (remaining > 0) {
-        final index = free.indexWhere(
-          (slot) => slot.durationMinutes >= 30,
-        );
+        final index = free.indexWhere((slot) => slot.durationMinutes >= 30);
         if (index < 0) {
           break;
         }
@@ -127,9 +122,7 @@ class PlannerEngine {
           break;
         }
 
-        blocks.add(
-          _suggestedBlock(candidate.task.id, slot.start, length),
-        );
+        blocks.add(_suggestedBlock(candidate.task.id, slot.start, length));
         free = _consumeSlot(free, index, length);
         remaining -= length;
       }
@@ -151,10 +144,7 @@ class PlannerEngine {
     );
   }
 
-  List<_FreeSlot> _windowsForDate(
-    WorkSchedule schedule,
-    DateTime day,
-  ) {
+  List<_FreeSlot> _windowsForDate(WorkSchedule schedule, DateTime day) {
     final windows = schedule.hasDateOverride(day)
         ? schedule.dateOverride(day)
         : schedule.windowsForWeekday(day.weekday);
@@ -176,21 +166,21 @@ class PlannerEngine {
   ) {
     var free = <_FreeSlot>[...windows];
 
-    final lockedForDay = lockedBlocks
-        .where(
-          (block) =>
-              block.isLocked &&
-              _sameLocalDate(block.start, day) &&
-              block.end.isAfter(block.start),
-        )
-        .toList()
-      ..sort((a, b) => a.start.compareTo(b.start));
+    final lockedForDay =
+        lockedBlocks
+            .where(
+              (block) =>
+                  block.isLocked &&
+                  _sameLocalDate(block.start, day) &&
+                  block.end.isAfter(block.start),
+            )
+            .toList()
+          ..sort((a, b) => a.start.compareTo(b.start));
 
     for (final block in lockedForDay) {
       final next = <_FreeSlot>[];
       for (final slot in free) {
-        if (!block.end.isAfter(slot.start) ||
-            !block.start.isBefore(slot.end)) {
+        if (!block.end.isAfter(slot.start) || !block.start.isBefore(slot.end)) {
           next.add(slot);
           continue;
         }
@@ -219,25 +209,16 @@ class PlannerEngine {
     return free;
   }
 
-  int _nextChunkLength({
-    required int remaining,
-    required int slotLength,
-  }) {
+  int _nextChunkLength({required int remaining, required int slotLength}) {
     if (remaining <= slotLength) {
       return remaining;
     }
 
     final leaveAtLeastThirty = remaining - 30;
-    return slotLength < leaveAtLeastThirty
-        ? slotLength
-        : leaveAtLeastThirty;
+    return slotLength < leaveAtLeastThirty ? slotLength : leaveAtLeastThirty;
   }
 
-  PlannedBlock _suggestedBlock(
-    String taskId,
-    DateTime start,
-    int minutes,
-  ) {
+  PlannedBlock _suggestedBlock(String taskId, DateTime start, int minutes) {
     final end = start.add(Duration(minutes: minutes));
     return PlannedBlock(
       id: 'suggested-$taskId-${start.millisecondsSinceEpoch}',
@@ -249,11 +230,7 @@ class PlannerEngine {
     );
   }
 
-  List<_FreeSlot> _consumeSlot(
-    List<_FreeSlot> slots,
-    int index,
-    int minutes,
-  ) {
+  List<_FreeSlot> _consumeSlot(List<_FreeSlot> slots, int index, int minutes) {
     final next = <_FreeSlot>[...slots];
     final slot = next[index];
     final newStart = slot.start.add(Duration(minutes: minutes));
@@ -281,10 +258,7 @@ class _FreeSlot {
   final DateTime start;
   final DateTime end;
 
-  const _FreeSlot({
-    required this.start,
-    required this.end,
-  });
+  const _FreeSlot({required this.start, required this.end});
 
   int get durationMinutes => end.difference(start).inMinutes;
 }

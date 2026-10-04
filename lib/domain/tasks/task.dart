@@ -9,6 +9,7 @@ class Task {
   final String description;
   final TaskStatus status;
   final String? projectId;
+  final String? milestoneId;
   final int importance;
   final int baseUrgency;
   final DateTime baseUrgencyAnchorAt;
@@ -28,6 +29,7 @@ class Task {
     required this.description,
     required this.status,
     required this.projectId,
+    required this.milestoneId,
     required this.importance,
     required this.baseUrgency,
     required this.baseUrgencyAnchorAt,
@@ -48,6 +50,7 @@ class Task {
     required String description,
     required TaskStatus status,
     required String? projectId,
+    String? milestoneId,
     required int importance,
     required int baseUrgency,
     required DateTime baseUrgencyAnchorAt,
@@ -86,6 +89,7 @@ class Task {
       description: description,
       status: status,
       projectId: projectId,
+      milestoneId: milestoneId,
       importance: importance,
       baseUrgency: baseUrgency,
       baseUrgencyAnchorAt: baseUrgencyAnchorAt.toUtc(),
@@ -106,6 +110,7 @@ class Task {
     String? description,
     TaskStatus? status,
     Object? projectId = _unchanged,
+    Object? milestoneId = _unchanged,
     int? importance,
     int? baseUrgency,
     DateTime? baseUrgencyAnchorAt,
@@ -126,6 +131,9 @@ class Task {
       projectId: identical(projectId, _unchanged)
           ? this.projectId
           : projectId as String?,
+      milestoneId: identical(milestoneId, _unchanged)
+          ? this.milestoneId
+          : milestoneId as String?,
       importance: importance ?? this.importance,
       baseUrgency: baseUrgency ?? this.baseUrgency,
       baseUrgencyAnchorAt: baseUrgencyAnchorAt ?? this.baseUrgencyAnchorAt,

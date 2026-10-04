@@ -72,22 +72,26 @@ void main() {
   test('saving a task reassigns its single project instead of adding another ownership', () async {
     final projects = ProjectRepository(db);
     final created = DateTime.utc(2026, 9, 30);
-    await projects.save(domain.Project(
-      id: 'p1',
-      name: 'DMAC',
-      objective: '',
-      deadline: null,
-      createdAt: created,
-      updatedAt: created,
-    ));
-    await projects.save(domain.Project(
-      id: 'p2',
-      name: 'UVM',
-      objective: '',
-      deadline: null,
-      createdAt: created,
-      updatedAt: created,
-    ));
+    await projects.save(
+      domain.Project(
+        id: 'p1',
+        name: 'DMAC',
+        objective: '',
+        deadline: null,
+        createdAt: created,
+        updatedAt: created,
+      ),
+    );
+    await projects.save(
+      domain.Project(
+        id: 'p2',
+        name: 'UVM',
+        objective: '',
+        deadline: null,
+        createdAt: created,
+        updatedAt: created,
+      ),
+    );
 
     final task = await repo.createTask(
       const TaskDraft(
