@@ -99,7 +99,7 @@ jobs:
           Start-Sleep -Seconds 8
           if ($app.HasExited) { throw "Installed app exited: $($app.ExitCode)" }
           Stop-Process -Id $app.Id
-          @{filename=(Split-Path $installer -Leaf);version='1.0.0+9';architecture='x64';signing='unsigned';sha256=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()} |
+          @{filename=(Split-Path $installer -Leaf);version='1.0.0+10';architecture='x64';signing='unsigned';sha256=(Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()} |
             ConvertTo-Json | Set-Content dist\windows\metadata.json -Encoding utf8
           Get-Content dist\windows\metadata.json
       - uses: actions/upload-artifact@v4
@@ -181,6 +181,10 @@ jobs:
           APP_PID=$!
           sleep 8
           kill -0 "$APP_PID"
+          if grep -E 'ProviderException|Unhandled Exception|Workspace database must be provided' "$RUNNER_TEMP/app-smoke.log"; then
+            echo 'Release application started with a Dart error' >&2
+            exit 1
+          fi
           kill "$APP_PID"
           wait "$APP_PID" || true
       - uses: actions/upload-artifact@v4

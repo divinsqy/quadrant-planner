@@ -1,7 +1,7 @@
 name: quadrant_planner
 description: Quadrant Planner desktop application
 publish_to: "none"
-version: 1.0.0+9
+version: 1.0.0+10
 
 environment:
   sdk: ">=3.13.0 <4.0.0"

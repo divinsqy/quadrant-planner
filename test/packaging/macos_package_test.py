@@ -18,7 +18,7 @@ class MacPackageContract(unittest.TestCase):
                 framework=app/'Contents/Frameworks/Fixture.framework'
                 framework.mkdir(parents=True)
                 (framework/'Fixture').write_text('fixture framework binary')
-            (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'quadrant_planner','CFBundleShortVersionString':'1.0.0','CFBundleVersion':'9'}))
+            (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'quadrant_planner','CFBundleShortVersionString':'1.0.0','CFBundleVersion':'10'}))
             bin_dir=root/'bin'; bin_dir.mkdir()
             commands={
                 'file':'''case "$2" in */MacOS/*|*.framework/Fixture) echo 'Mach-O executable';; *) echo 'XML document';; esac''',

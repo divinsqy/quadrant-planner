@@ -1,11 +1,24 @@
 import 'package:integration_test/integration_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quadrant_planner/core/sync/secure_session_store.dart';
+import 'package:quadrant_planner/features/dashboard/quadrant/quadrant_board.dart';
+import 'package:quadrant_planner/main.dart' as production;
 
 import '../test/support/v1_journeys.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('production entry point opens the real Dashboard', (
+    tester,
+  ) async {
+    production.main();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(QuadrantBoard), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
   taskToReportJourney();
   offlineSyncConflictJourney();
   backupRestoreJourney();

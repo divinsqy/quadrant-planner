@@ -9,7 +9,7 @@ with open(sys.argv[1],'rb') as f: info=plistlib.load(f)
 print(info['CFBundleShortVersionString'],info['CFBundleVersion'],info['CFBundleExecutable'])
 PY
 )
-[[ "$APP_VERSION" == '1.0.0' && "$APP_BUILD" == '9' ]] || { echo 'Unexpected app version/build' >&2; exit 1; }
+[[ "$APP_VERSION" == '1.0.0' && "$APP_BUILD" == '10' ]] || { echo 'Unexpected app version/build' >&2; exit 1; }
 BINARY="$APP_PATH/Contents/MacOS/$EXECUTABLE"
 [[ -f "$BINARY" ]] || { echo 'App executable missing' >&2; exit 1; }
 ARCHES="$(lipo -archs "$BINARY")"
@@ -75,7 +75,7 @@ hdiutil verify "$DMG"
 python3 - "$DMG" "$ARCHITECTURE" "$ARCHES" "$SIGNING" "$NOTARIZED" <<'PY'
 import hashlib,json,pathlib,sys
 file=pathlib.Path(sys.argv[1])
-metadata={'filename':file.name,'version':'1.0.0+9','architecture':sys.argv[2],'binary_architectures':sys.argv[3].split(),'signing':sys.argv[4],'notarized':sys.argv[5]=='true','sha256':hashlib.sha256(file.read_bytes()).hexdigest()}
+metadata={'filename':file.name,'version':'1.0.0+10','architecture':sys.argv[2],'binary_architectures':sys.argv[3].split(),'signing':sys.argv[4],'notarized':sys.argv[5]=='true','sha256':hashlib.sha256(file.read_bytes()).hexdigest()}
 (file.parent/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')
 print(json.dumps(metadata))
 PY
