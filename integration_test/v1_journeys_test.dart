@@ -1,6 +1,8 @@
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quadrant_planner/app/workspace_providers.dart';
 import 'package:quadrant_planner/core/sync/secure_session_store.dart';
 import 'package:quadrant_planner/features/dashboard/quadrant/quadrant_board.dart';
 import 'package:quadrant_planner/main.dart' as production;
@@ -16,6 +18,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(QuadrantBoard), findsOneWidget);
+    final workspace = ProviderScope.containerOf(
+      tester.element(find.byType(QuadrantBoard)),
+    );
+    // A frame can settle before the background SQLite isolate finishes opening.
+    // Verify actual data readiness before closing the application under test.
+    await tester.runAsync(() async {
+      final version = await workspace
+          .read(workspaceDatabaseProvider)
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(version.read<int>('user_version'), 5);
+    });
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });
